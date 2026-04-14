@@ -116,11 +116,15 @@ export async function verifyMSG91(authkey: string) {
   
   try {
     const response = await fetch(url, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        authkey: authkey,
+        'accept': 'application/json',
+        'Authkey': authkey,
       },
+      body: JSON.stringify({
+        service: 'whatsapp'
+      })
     });
 
     if (response.ok) {
@@ -128,7 +132,15 @@ export async function verifyMSG91(authkey: string) {
       return { success: true, balance: data.balance || 0 };
     }
     
-    const errorText = await response.text();
+    // Attempt to parse error JSON or text
+    let errorText = '';
+    try {
+      const errJson = await response.json();
+      errorText = JSON.stringify(errJson);
+    } catch {
+      errorText = await response.text();
+    }
+    
     return { success: false, error: errorText };
   } catch (error: any) {
     return { success: false, error: error.message };
