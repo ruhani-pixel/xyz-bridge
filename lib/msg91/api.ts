@@ -96,16 +96,18 @@ export async function getMSG91Templates(integratedNumber: string, authkey: strin
     headers: {
       'Content-Type': 'application/json',
       'accept': 'application/json',
-      authkey: authkey,
+      'Authkey': authkey,
     },
   });
 
-  if (!response.ok) {
-     const error = await response.text();
-     throw new Error(`Failed to fetch templates: ${error}`);
+  // Always try to parse JSON - even error responses from MSG91 are JSON
+  try {
+    const data = await response.json();
+    return data;
+  } catch {
+    const text = await response.text();
+    return { status: 'fail', hasError: true, errors: text, code: String(response.status) };
   }
-
-  return await response.json();
 }
 
 /**

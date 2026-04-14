@@ -28,12 +28,38 @@ export async function GET(req: NextRequest) {
       userData.msg91_authkey // Plain text
     );
 
+    // Check if MSG91 returned an error (418 IP block, 401 auth, etc.)
+    if (templatesResponse?.status === 'fail' || templatesResponse?.hasError) {
+      let errorType = 'auth_failed';
+      if (templatesResponse?.apiError === '418' || templatesResponse?.code === '418') {
+        errorType = 'ip_blocked';
+      }
+      return NextResponse.json({ 
+        templates: [], 
+        error_type: errorType,
+        error: errorType === 'ip_blocked' 
+          ? 'MSG91 API Security ne request block kar di. IP whitelist karein ya API Security OFF karein.'
+          : 'Auth Key sahi nahi hai ya expire ho gayi hai.'
+      });
+    }
+
     // MSG91 returns an array under 'data', 'templates', or root
     const templates = templatesResponse.data || templatesResponse.templates || (Array.isArray(templatesResponse) ? templatesResponse : []);
     
     return NextResponse.json({ templates });
   } catch (error: any) {
     console.error('Fetch Templates Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    
+    // Detect 418 in error message
+    let errorType = 'auth_failed';
+    if (error.message?.includes('418')) {
+      errorType = 'ip_blocked';
+    }
+    
+    return NextResponse.json({ 
+      templates: [],
+      error_type: errorType,
+      error: error.message 
+    });
   }
 }

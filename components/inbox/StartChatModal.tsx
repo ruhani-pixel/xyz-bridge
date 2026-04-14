@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { X, MessageSquare, Send, Phone, User, Loader2, Search } from 'lucide-react';
+import { X, MessageSquare, Send, Phone, User, Loader2, Search, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { MSG91SecurityGuide } from '@/components/ui/MSG91SecurityGuide';
 
 interface StartChatModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export function StartChatModal({ isOpen, onClose }: StartChatModalProps) {
   const [templates, setTemplates] = useState<any[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showSecurityGuide, setShowSecurityGuide] = useState(false);
+  const [securityGuideType, setSecurityGuideType] = useState<'ip_blocked' | 'auth_failed' | 'templates_failed'>('templates_failed');
 
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +35,15 @@ export function StartChatModal({ isOpen, onClose }: StartChatModalProps) {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
+      
+      // Check for MSG91 error_type (IP block, auth failure)
+      if (data.error_type) {
+        setSecurityGuideType(data.error_type === 'ip_blocked' ? 'ip_blocked' : 'templates_failed');
+        setShowSecurityGuide(true);
+        setTemplates([]);
+        return;
+      }
+      
       if (data.templates && Array.isArray(data.templates)) {
         // Filter only approved templates (Case-Insensitive)
         const approvedSymbol = 'APPROVED';
@@ -42,7 +54,7 @@ export function StartChatModal({ isOpen, onClose }: StartChatModalProps) {
       }
     } catch (error) {
       console.error('Template Fetch Error:', error);
-      toast.error('Galti ho gayi... Templates nahi mil pa rahe.');
+      toast.error('Templates load nahi ho rahe. Settings check karein.');
     } finally {
       setLoadingTemplates(false);
     }
@@ -140,8 +152,20 @@ export function StartChatModal({ isOpen, onClose }: StartChatModalProps) {
               </label>
               <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                 {templates.length === 0 && !loadingTemplates && (
-                  <div className="p-4 border border-slate-100 border-dashed rounded-2xl text-center text-xs text-slate-300">
-                    Aapke MSG91 account mein koi Approved Template nahi mila.
+                  <div className="p-4 border border-amber-200 bg-amber-50/50 border-dashed rounded-2xl text-center space-y-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />
+                    <p className="text-xs text-amber-800 font-bold">Templates nahi mil rahe</p>
+                    <p className="text-[10px] text-amber-600">Settings mein MSG91 AuthKey check karein ya API Security OFF karein.</p>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setSecurityGuideType('templates_failed');
+                        setShowSecurityGuide(true);
+                      }}
+                      className="text-[9px] font-black text-amber-700 uppercase tracking-widest hover:text-amber-900 underline underline-offset-2 transition-colors"
+                    >
+                      Kya karein? Guide dekhein →
+                    </button>
                   </div>
                 )}
                 {templates.map((t) => (
@@ -180,6 +204,13 @@ export function StartChatModal({ isOpen, onClose }: StartChatModalProps) {
           </form>
         </CardContent>
       </Card>
+
+      {/* MSG91 Security Guide Popup */}
+      <MSG91SecurityGuide 
+        isOpen={showSecurityGuide} 
+        onClose={() => setShowSecurityGuide(false)}
+        errorType={securityGuideType}
+      />
     </div>
   );
 }

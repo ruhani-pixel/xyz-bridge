@@ -26,14 +26,40 @@ export async function POST(req: NextRequest) {
         balance: result.balance 
       });
     } else {
+      // Parse the error to detect IP blocking (418) or auth failure (401)
+      let errorType = 'auth_failed';
+      let userMessage = 'Auth Key galat hai ya expire ho gayi hai. MSG91 Dashboard se nayi key generate karein.';
+      
+      try {
+        const errData = typeof result.error === 'string' ? JSON.parse(result.error) : result.error;
+        if (errData?.apiError === '418' || errData?.code === '418') {
+          errorType = 'ip_blocked';
+          userMessage = 'MSG91 ne aapke server ka IP block kar diya hai. API Security OFF karein ya IP whitelist karein.';
+        } else if (errData?.code === '401' || errData?.errors === 'Unauthorized') {
+          errorType = 'auth_failed';
+          userMessage = 'Auth Key sahi nahi hai. MSG91 Dashboard se check karein.';
+        }
+      } catch {
+        // if error string contains 418
+        if (typeof result.error === 'string' && result.error.includes('418')) {
+          errorType = 'ip_blocked';
+          userMessage = 'MSG91 ne aapke server ka IP block kar diya hai. API Security OFF karein ya IP whitelist karein.';
+        }
+      }
+      
       return NextResponse.json({ 
         success: false, 
-        error: result.error || 'Check your AuthKey and try again.' 
+        error_type: errorType,
+        error: userMessage
       }, { status: 400 });
     }
 
   } catch (error: any) {
     console.error('Verify MSG91 Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      success: false,
+      error_type: 'auth_failed',
+      error: 'Server se connection nahi ho paya. Thodi der baad try karein.' 
+    }, { status: 500 });
   }
 }

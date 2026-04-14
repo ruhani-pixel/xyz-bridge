@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { PLANS } from '@/lib/plans';
 import { toast } from 'sonner';
+import { MSG91SecurityGuide } from '@/components/ui/MSG91SecurityGuide';
 
 export default function SettingsPage() {
   const { role, user, adminData, loading: authLoading } = useAuth();
@@ -19,6 +20,8 @@ export default function SettingsPage() {
   const [copiedMsg, setCopiedMsg] = useState(false);
   const [copiedChat, setCopiedChat] = useState(false);
   const [activeTab, setActiveTab] = useState<'api' | 'plan' | 'bridge'>('api');
+  const [showSecurityGuide, setShowSecurityGuide] = useState(false);
+  const [securityGuideType, setSecurityGuideType] = useState<'ip_blocked' | 'auth_failed'>('ip_blocked');
 
   // Config State
   const [config, setConfig] = useState({
@@ -183,11 +186,17 @@ export default function SettingsPage() {
                               if (data.success) {
                                 toast.success(`Connected! Balance: ${data.balance}`);
                               } else {
-                                toast.error(data.error || 'Connection Failed');
+                                // Show Security Guide popup for IP block or auth errors
+                                if (data.error_type === 'ip_blocked' || data.error_type === 'auth_failed') {
+                                  setSecurityGuideType(data.error_type);
+                                  setShowSecurityGuide(true);
+                                } else {
+                                  toast.error(data.error || 'Connection Failed');
+                                }
                               }
                             } catch {
                               toast.dismiss(loadingToast);
-                              toast.error('Could not reach verification server');
+                              toast.error('Server se connection nahi ho paya. Thodi der baad try karein.');
                             }
                           }}
                           className="text-[9px] font-black text-brand-gold hover:text-brand-gold/80 uppercase tracking-widest flex items-center gap-1 transition-colors"
@@ -398,6 +407,13 @@ export default function SettingsPage() {
           </Card>
         </div>
       )}
+
+      {/* MSG91 Security Guide Popup */}
+      <MSG91SecurityGuide 
+        isOpen={showSecurityGuide} 
+        onClose={() => setShowSecurityGuide(false)}
+        errorType={securityGuideType}
+      />
     </div>
   );
 }
