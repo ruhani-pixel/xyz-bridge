@@ -32,9 +32,12 @@ export function StartChatModal({ isOpen, onClose }: StartChatModalProps) {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
-      if (data.templates) {
-        // Filter only approved templates
-        const approved = data.templates.filter((t: any) => t.status === 'APPROVED');
+      if (data.templates && Array.isArray(data.templates)) {
+        // Filter only approved templates (Case-Insensitive)
+        const approvedSymbol = 'APPROVED';
+        const approved = data.templates.filter((t: any) => 
+          t.status && t.status.toString().toUpperCase() === approvedSymbol
+        );
         setTemplates(approved);
       }
     } catch (error) {

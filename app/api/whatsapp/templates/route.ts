@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { getMSG91Templates } from '@/lib/msg91/api';
-import { decrypt } from '@/lib/security';
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,13 +23,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ templates: [] }); // Not configured
     }
 
-    const templates = await getMSG91Templates(
+    const templatesResponse = await getMSG91Templates(
       userData.msg91_integrated_number,
-      decrypt(userData.msg91_authkey)
+      userData.msg91_authkey // Plain text
     );
 
-    // MSG91 returns an array under 'data' or similar depending on the response
-    return NextResponse.json({ templates: templates.data || [] });
+    // MSG91 returns an array under 'data', 'templates', or root
+    const templates = templatesResponse.data || templatesResponse.templates || (Array.isArray(templatesResponse) ? templatesResponse : []);
+    
+    return NextResponse.json({ templates });
   } catch (error: any) {
     console.error('Fetch Templates Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

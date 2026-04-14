@@ -95,6 +95,7 @@ export async function getMSG91Templates(integratedNumber: string, authkey: strin
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
+      'accept': 'application/json',
       authkey: authkey,
     },
   });
