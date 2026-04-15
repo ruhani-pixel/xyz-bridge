@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(req: Request) {
   try {
@@ -103,12 +104,80 @@ export async function POST(req: Request) {
     }
 
     if (!isTest && campaignRef) {
-      // Update campaign record
-      await campaignRef.update({
+      const isCompletedNow = recipients.length <= 5;
+      
+      const updateData: any = {
         sentCount: sent,
         failedCount: failed,
-        status: recipients.length > 5 ? 'processing' : 'completed',
-      });
+        status: isCompletedNow ? 'completed' : 'processing',
+      };
+
+      // SCRUB DATA IMMEDIATELY IF VERY SMALL CAMPAIGN
+      if (isCompletedNow) {
+        updateData.recipients = FieldValue.delete();
+        updateData.subject = FieldValue.delete();
+        updateData.body = FieldValue.delete();
+      }
+
+      await campaignRef.update(updateData);
+
+      // Background processor for large lists
+      if (!isCompletedNow) {
+        (async () => {
+          let bgSent = sent;
+          let bgFailed = failed;
+          
+          for (let i = 5; i < recipients.length; i++) {
+            const r = recipients[i] || {};
+            const tEmail = r.Email || r.email;
+            const tName = r.Name || r.name || '';
+            const rSub = r.Subject || r.subject || subject;
+            const rBody = r.Body || r.body || body;
+            
+            const pBody = rBody.replace(/{{Name}}/g, tName).replace(/{{Email}}/g, tEmail);
+            const pSub = rSub.replace(/{{Name}}/g, tName).replace(/{{Email}}/g, tEmail);
+
+            try {
+              if (tEmail) {
+                await transporter.sendMail({
+                  from: `"${userData?.name || 'Solid Models User'}" <${senderEmail}>`,
+                  to: tEmail,
+                  subject: pSub,
+                  text: pBody,
+                });
+                bgSent++;
+              }
+            } catch (err) { bgFailed++; }
+
+            // Batch update UI tracking every 10 emails
+            if (i % 10 === 0) {
+              await campaignRef?.update({
+                sentCount: bgSent,
+                failedCount: bgFailed
+              });
+            }
+            
+            // Sleep to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+
+          // FINAL SCRUB WHEN BACKGROUND FINISHES
+          await campaignRef?.update({
+            sentCount: bgSent,
+            failedCount: bgFailed,
+            status: 'completed',
+            recipients: FieldValue.delete(),
+            subject: FieldValue.delete(),
+            body: FieldValue.delete()
+          });
+        })();
+      }
+
+      // If launched from a specific draft, wipe that draft.
+      const { draftId } = await req.json().catch(() => ({}));
+      if (draftId) {
+        await adminDb.collection('users').doc(uid).collection('gmailDrafts').doc(draftId).delete().catch(() => {});
+      }
     }
 
     if (isTest) {

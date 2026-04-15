@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Inbox, Bot, Users, Zap, ShieldCheck,
   Download, Settings, BarChart2, Code2, MessageSquare, GitBranch,
   CreditCard, LogOut, ChevronRight, Building2, HelpCircle,
-  UserPlus, Globe, Languages, Mail
+  UserPlus, Globe, Languages, Mail, FileText
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -109,6 +109,7 @@ export function Sidebar() {
 
   const headOnlyLinks = role !== 'agent' ? (isGmail ? [
     { href: '/gmail/campaigns', label: 'Campaigns', icon: Zap },
+    { href: '/gmail/drafts', label: 'Drafts', icon: FileText },
     { href: '/gmail/templates', label: 'Templates', icon: MessageSquare },
     { href: '/gmail/settings', label: 'Gmail Settings', icon: Settings },
   ] : [

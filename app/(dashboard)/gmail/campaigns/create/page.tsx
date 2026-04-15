@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   FileText, Upload, Send, ArrowRight, ArrowLeft, 
   CheckCircle2, Mail, Users, AlertCircle, Trash2, 
-  Eye, Save, Rocket, Info, Laptop, ListPlus
+  Eye, Save, Rocket, Info, Laptop, ListPlus, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
@@ -16,54 +17,94 @@ import { useAuth } from '@/hooks/useAuth';
 
 type Step = 'import' | 'compose' | 'review';
 
-export default function CreateCampaignPage() {
+function CampaignWizard() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
   const [step, setStep] = useState<Step>('import');
   const [importType, setImportType] = useState<'file' | 'manual' | null>(null);
+  
+  const [campaignName, setCampaignName] = useState('');
+  const [draftId, setDraftId] = useState<string | null>(null);
+  
   const [recipients, setRecipients] = useState<any[]>([]);
   const [manualInput, setManualInput] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [draftLoaded, setDraftLoaded] = useState(false);
 
   useEffect(() => {
+    const id = searchParams.get('draftId');
+    if (!id) {
+      setDraftLoaded(true);
+      return;
+    }
+    
     const fetchDraft = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('/api/gmail/drafts', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`/api/gmail/drafts?id=${id}`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
         if (data.draft) {
+          setDraftId(id);
+          setCampaignName(data.draft.campaignName || '');
           if (data.draft.recipients?.length > 0) {
             setRecipients(data.draft.recipients);
             setSubject(data.draft.subject || '');
             setBody(data.draft.body || '');
-            setStep('import'); // Keep at import so they can decide to proceed or reset
-            toast.success('Restored your previous draft campaign from the database!');
+            toast.success('Restored your draft campaign!');
           }
         }
       } catch (err) { console.error(err); }
       finally { setDraftLoaded(true); }
     };
     fetchDraft();
-  }, []);
+  }, [searchParams]);
 
-  const autoSaveDraft = async () => {
+  const handleSaveDraft = async () => {
+    if (!campaignName) {
+       toast.error('Campaign Name is required to save a draft.');
+       return;
+    }
+    setIsSavingDraft(true);
+    const loadId = toast.loading('Saving draft...');
     try {
       const token = localStorage.getItem('token');
-      await fetch('/api/gmail/drafts', {
+      const res = await fetch('/api/gmail/drafts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ recipients, subject, body }),
+        body: JSON.stringify({ draftId, campaignName, recipients, subject, body }),
       });
-    } catch (err) { console.error('Failed to sync draft', err); }
+      const data = await res.json();
+      toast.dismiss(loadId);
+      if (data.success) {
+         toast.success('Draft saved successfully!');
+         router.push('/gmail/drafts');
+      } else {
+         toast.error(data.error || 'Failed to save draft');
+      }
+    } catch (err) {
+      toast.dismiss(loadId);
+      toast.error('Network error saving draft.');
+    } finally {
+      setIsSavingDraft(false);
+    }
   };
 
 
   // -- Handlers --
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!campaignName.trim()) {
+      toast.error('Please enter a Campaign Name first!');
+      e.target.value = '';
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -110,6 +151,10 @@ export default function CreateCampaignPage() {
   };
 
   const processManualInput = () => {
+    if (!campaignName.trim()) {
+      toast.error('Please enter a Campaign Name first!');
+      return;
+    }
     const emails = manualInput.split('\n').map(e => e.trim()).filter(e => e.includes('@'));
     if (emails.length === 0) {
       toast.error('No valid emails found');
@@ -140,22 +185,14 @@ export default function CreateCampaignPage() {
           subject,
           body,
           recipients,
-          campaignName: `Campaign — ${new Date().toLocaleDateString('en-IN')}`,
+          campaignName,
+          draftId,
         }),
       });
       const data = await res.json();
       toast.dismiss(loadId);
       if (data.success) {
         toast.success(`🚀 Campaign launched! ${data.sent} sent, ${data.failed} failed.`);
-        // Clear draft
-        try {
-          const token = localStorage.getItem('token');
-          await fetch('/api/gmail/drafts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({}),
-          });
-        } catch(e){}
         window.location.href = '/gmail/campaigns';
       } else if (data.error === 'APP_PASSWORD_MISSING') {
         toast.error('Gmail not configured. Please go to Gmail Settings first.');
@@ -221,8 +258,19 @@ export default function CreateCampaignPage() {
             className="space-y-6"
           >
             <div className="text-center max-w-2xl mx-auto mb-8">
-               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Select Target Audience</h2>
-               <p className="text-[13px] text-slate-500 font-medium">Choose how to provide the list of recipients.</p>
+               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Campaign Details</h2>
+               <p className="text-[13px] text-slate-500 font-medium mb-6">Give your campaign a name and select your audience.</p>
+               
+               <div className="max-w-md mx-auto mb-8 text-left">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Campaign Name *</label>
+                  <input
+                     type="text"
+                     value={campaignName}
+                     onChange={(e) => setCampaignName(e.target.value)}
+                     placeholder="e.g. Diwali Offer Blast"
+                     className="w-full h-12 px-4 bg-white border-2 border-slate-200 rounded-xl font-black text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-red-500 transition-colors"
+                  />
+               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
@@ -357,7 +405,7 @@ export default function CreateCampaignPage() {
                                {body.replace('{{Name}}', recipients[0]?.Name || 'Name') || 'Message content will appear here...'}
                             </p>
                          </div>
-                         <Button onClick={() => { autoSaveDraft(); setStep('review'); }} className="w-full h-14 bg-white text-slate-900 hover:bg-white/90 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl">
+                         <Button onClick={() => setStep('review')} className="w-full h-14 bg-white text-slate-900 hover:bg-white/90 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl">
                             Next Stage <ArrowRight className="w-4 h-4" />
                          </Button>
                       </div>
@@ -451,14 +499,21 @@ export default function CreateCampaignPage() {
                 </div>
              </div>
 
-             <div className="flex gap-4 pt-4 border-t border-slate-100">
-                <Button onClick={() => setStep('compose')} className="flex-1 h-12 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
+             <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-100">
+                <Button onClick={() => setStep('compose')} className="sm:flex-1 h-12 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
                    Back
                 </Button>
                 <Button 
+                   onClick={handleSaveDraft} 
+                   disabled={isSavingDraft || isProcessing}
+                   className="sm:flex-[1.5] h-12 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all shadow-md"
+                >
+                   {isSavingDraft ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save as Draft
+                </Button>
+                <Button 
                    onClick={handleLaunch} 
-                   disabled={isProcessing}
-                   className="flex-[2] h-12 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 flex items-center justify-center gap-3 transition-all"
+                   disabled={isProcessing || isSavingDraft}
+                   className="sm:flex-[2] h-12 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 flex items-center justify-center gap-3 transition-all"
                 >
                    {isProcessing ? 'Launching...' : 'Ignite Campaign'} <Send className="w-4 h-4 flex-shrink-0" />
                 </Button>
@@ -499,5 +554,13 @@ export default function CreateCampaignPage() {
 
        {renderStep()}
     </div>
+  );
+}
+
+export default function CreateCampaignPage() {
+  return (
+    <Suspense fallback={<div className="p-10 flex text-center justify-center font-black animate-pulse rounded-xl bg-slate-50 text-slate-400">Loading Wizard...</div>}>
+      <CampaignWizard />
+    </Suspense>
   );
 }
