@@ -58,6 +58,7 @@ function CampaignWizard() {
             setRecipients(data.draft.recipients);
             setSubject(data.draft.subject || '');
             setBody(data.draft.body || '');
+            setStep('review');
             toast.success('Restored your draft campaign!');
           }
         }
