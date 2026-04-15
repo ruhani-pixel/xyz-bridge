@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Upload, Send, ArrowRight, ArrowLeft, 
@@ -25,6 +25,42 @@ export default function CreateCampaignPage() {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetchDraft = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/gmail/drafts', { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (data.draft) {
+          if (data.draft.recipients?.length > 0) {
+            setRecipients(data.draft.recipients);
+            setSubject(data.draft.subject || '');
+            setBody(data.draft.body || '');
+            setStep('import'); // Keep at import so they can decide to proceed or reset
+            toast.success('Restored your previous draft campaign from the database!');
+          }
+        }
+      } catch (err) { console.error(err); }
+      finally { setDraftLoaded(true); }
+    };
+    fetchDraft();
+  }, []);
+
+  const autoSaveDraft = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('/api/gmail/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ recipients, subject, body }),
+      });
+    } catch (err) { console.error('Failed to sync draft', err); }
+  };
+
 
   // -- Handlers --
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,23 +70,36 @@ export default function CreateCampaignPage() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
+      const processData = (data: any[]) => {
+        if (data.length === 0) {
+          toast.error('No data found in file');
+          return;
+        }
+        setRecipients(data);
+        const firstRow = data[0];
+        const s = firstRow.Subject || firstRow.subject || '';
+        const b = firstRow.Body || firstRow.body || '';
+        if (s) setSubject(s);
+        if (b) setBody(b);
+        if (s || b) {
+          toast.success(`${data.length} recipients imported. Subject and Body loaded!`);
+        } else {
+          toast.success(`${data.length} recipients imported!`);
+        }
+        setStep('compose');
+      };
+
       if (file.name.endsWith('.csv')) {
         Papa.parse(bstr as string, {
           header: true,
-          complete: (results: Papa.ParseResult<any>) => {
-            setRecipients(results.data);
-            toast.success(`${results.data.length} recipients imported!`);
-            setStep('compose');
-          }
+          complete: (results: Papa.ParseResult<any>) => processData(results.data)
         });
       } else {
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
-        setRecipients(data);
-        toast.success(`${data.length} recipients imported!`);
-        setStep('compose');
+        processData(data);
       }
     };
     if (file.name.endsWith('.csv')) {
@@ -72,18 +121,94 @@ export default function CreateCampaignPage() {
     setStep('compose');
   };
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     if (!subject || !body) {
       toast.error('Please fill in subject and body');
       return;
     }
     setIsProcessing(true);
-    // TODO: Actual API call
-    setTimeout(() => {
+    const loadId = toast.loading(`Launching campaign to ${recipients.length} recipients...`);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/gmail/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          subject,
+          body,
+          recipients,
+          campaignName: `Campaign — ${new Date().toLocaleDateString('en-IN')}`,
+        }),
+      });
+      const data = await res.json();
+      toast.dismiss(loadId);
+      if (data.success) {
+        toast.success(`🚀 Campaign launched! ${data.sent} sent, ${data.failed} failed.`);
+        // Clear draft
+        try {
+          const token = localStorage.getItem('token');
+          await fetch('/api/gmail/drafts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({}),
+          });
+        } catch(e){}
+        window.location.href = '/gmail/campaigns';
+      } else if (data.error === 'APP_PASSWORD_MISSING') {
+        toast.error('Gmail not configured. Please go to Gmail Settings first.');
+        window.location.href = '/gmail/settings';
+      } else {
+        toast.error(data.message || 'Launch failed');
+      }
+    } catch (err) {
+      toast.dismiss(loadId);
+      toast.error('Network error. Please try again.');
+    } finally {
       setIsProcessing(false);
-      toast.success('Campaign launched successfully! 🚀');
-      window.location.href = '/gmail/dashboard';
-    }, 2000);
+    }
+  };
+
+  const handleTestLaunch = async () => {
+    if (!testEmail) {
+      toast.error('Please enter a test email address');
+      return;
+    }
+    setIsTesting(true);
+    const loadId = toast.loading(`Sending test email to ${testEmail}...`);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/gmail/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          subject,
+          body,
+          recipients,
+          isTest: true,
+          testEmail
+        }),
+      });
+      const data = await res.json();
+      toast.dismiss(loadId);
+      if (data.success) {
+        toast.success(`🧪 Test email sent perfectly to ${testEmail}`);
+      } else if (data.error === 'APP_PASSWORD_MISSING') {
+        toast.error('Gmail not configured. Please go to Settings.');
+      } else {
+        toast.error(data.message || 'Test failed');
+      }
+    } catch (err) {
+      toast.dismiss(loadId);
+      toast.error('Network error during test.');
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const renderStep = () => {
@@ -232,7 +357,7 @@ export default function CreateCampaignPage() {
                                {body.replace('{{Name}}', recipients[0]?.Name || 'Name') || 'Message content will appear here...'}
                             </p>
                          </div>
-                         <Button onClick={() => setStep('review')} className="w-full h-14 bg-white text-slate-900 hover:bg-white/90 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl">
+                         <Button onClick={() => { autoSaveDraft(); setStep('review'); }} className="w-full h-14 bg-white text-slate-900 hover:bg-white/90 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl">
                             Next Stage <ArrowRight className="w-4 h-4" />
                          </Button>
                       </div>
@@ -274,7 +399,7 @@ export default function CreateCampaignPage() {
                 <p className="text-[13px] text-slate-500 font-medium">Verify details before launching the campaign.</p>
              </div>
 
-             <div className="space-y-4">
+             <div className="space-y-6">
                 <div className="bg-white border border-slate-100 rounded-2xl p-8 space-y-6 shadow-sm">
                    <div className="grid grid-cols-2 gap-8 border-b border-slate-100 pb-6">
                       <div>
@@ -293,16 +418,40 @@ export default function CreateCampaignPage() {
                    </div>
                 </div>
 
-                <div className="p-8 bg-red-50 border border-red-100 rounded-[2.5rem] flex items-start gap-4">
-                   <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-1" />
-                   <p className="text-xs text-red-800 leading-relaxed font-medium">
+                {/* Test Environment Box */}
+                <div className="p-6 bg-slate-50 border border-slate-200 rounded-[2rem] space-y-4 relative overflow-hidden">
+                   <div className="flex items-center justify-between z-10 relative">
+                     <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight flex items-center gap-2"><Eye className="w-4 h-4 text-slate-400" /> Test Environment</h3>
+                   </div>
+                   <div className="flex flex-col sm:flex-row gap-3 z-10 relative">
+                     <input 
+                       type="email" 
+                       value={testEmail}
+                       onChange={(e) => setTestEmail(e.target.value)}
+                       placeholder="Enter your email to test..."
+                       className="flex-1 h-11 bg-white border border-slate-200 rounded-xl px-4 text-[12px] font-medium text-slate-900 focus:outline-none focus:border-slate-400 transition-all font-mono"
+                     />
+                     <Button 
+                       onClick={handleTestLaunch} 
+                       disabled={isTesting || !testEmail}
+                       className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 transition-all flex-shrink-0"
+                     >
+                       {isTesting ? 'Sending test...' : 'Send Test'}
+                     </Button>
+                   </div>
+                   <p className="text-[9.5px] font-medium text-slate-400 mt-2">Highly recommended to send a test email before launching to 500 people.</p>
+                </div>
+
+                <div className="p-6 bg-red-50 border border-red-100 rounded-[2rem] flex items-start gap-4">
+                   <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                   <p className="text-[11px] text-red-800 leading-relaxed font-medium">
                       By launching this campaign, you confirm that these recipients have opted in to receive your communications. 
                       Sending spam may result in Gmail account suspension.
                    </p>
                 </div>
              </div>
 
-             <div className="flex gap-4">
+             <div className="flex gap-4 pt-4 border-t border-slate-100">
                 <Button onClick={() => setStep('compose')} className="flex-1 h-12 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
                    Back
                 </Button>

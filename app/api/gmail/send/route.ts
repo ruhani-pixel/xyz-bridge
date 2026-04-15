@@ -13,10 +13,16 @@ export async function POST(req: Request) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    const { subject, body, recipients, campaignName } = await req.json();
+    const { subject, body, recipients, campaignName, isTest, testEmail } = await req.json();
 
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-      return NextResponse.json({ error: 'No recipients provided' }, { status: 400 });
+      if (!isTest) {
+        return NextResponse.json({ error: 'No recipients provided' }, { status: 400 });
+      }
+    }
+    
+    if (isTest && !testEmail) {
+      return NextResponse.json({ error: 'No test email provided' }, { status: 400 });
     }
 
     // 1. Get user's Gmail App Password from Firestore
@@ -41,45 +47,51 @@ export async function POST(req: Request) {
       },
     });
 
-    // 3. Create Campaign Record in Firestore
-    const campaignRef = adminDb.collection('users').doc(uid).collection('gmailCampaigns').doc();
-    const campaignId = campaignRef.id;
-
-    await campaignRef.set({
-      id: campaignId,
-      name: campaignName || `Campaign ${new Date().toLocaleDateString()}`,
-      subject,
-      body,
-      totalRecipients: recipients.length,
-      sentCount: 0,
-      failedCount: 0,
-      status: 'active',
-      createdAt: new Date(),
-    });
-
-    // 4. Start sending in the background (simplified for this demo)
-    // In a production environment, this should be a background worker or queue.
-    // For Vercel/Next.js routes, large batches might timeout.
-    // We'll send the first few and return success, instructing frontend to poll or handle the rest.
+    // 3. Create Campaign Record in Firestore (ONLY IF NOT TEST)
+    let campaignRef, campaignId;
     
-    // Process sending loop (limited for a single request context)
-    const MAX_PER_REQUEST = 5; // Send a few immediately to verify
+    if (!isTest) {
+      campaignRef = adminDb.collection('users').doc(uid).collection('gmailCampaigns').doc();
+      campaignId = campaignRef.id;
+
+      await campaignRef.set({
+        id: campaignId,
+        name: campaignName || `Campaign ${new Date().toLocaleDateString()}`,
+        subject,
+        body,
+        totalRecipients: recipients.length,
+        sentCount: 0,
+        failedCount: 0,
+        status: 'active',
+        createdAt: new Date(),
+      });
+    }
+
+    // 4. Start sending
+    // For test, we only want to pick the first recipient to populate tags, and send to testEmail
+    const loopLimit = isTest ? 1 : Math.min(recipients.length, 5); 
     let sent = 0;
     let failed = 0;
 
-    for (let i = 0; i < Math.min(recipients.length, MAX_PER_REQUEST); i++) {
-      const recipient = recipients[i];
-      const targetEmail = recipient.Email || recipient.email;
-      const targetName = recipient.Name || recipient.name || '';
+    for (let i = 0; i < loopLimit; i++) {
+      const recipient = recipients[i] || {};
+      // If it's a test, force target to testEmail. Otherwise use recipient data.
+      const targetEmail = isTest ? testEmail : (recipient.Email || recipient.email);
+      const targetName = recipient.Name || recipient.name || (isTest ? 'Test User' : '');
 
-      // Personalize body
-      const personalizedBody = body.replace(/{{Name}}/g, targetName).replace(/{{Email}}/g, targetEmail);
+      // Individual recipient Subject/Body override from Advanced CSV
+      const rowSubject = recipient.Subject || recipient.subject || subject;
+      const rowBody = recipient.Body || recipient.body || body;
+
+      // Personalize body and subject
+      const personalizedBody = rowBody.replace(/{{Name}}/g, targetName).replace(/{{Email}}/g, targetEmail);
+      const personalizedSubject = rowSubject.replace(/{{Name}}/g, targetName).replace(/{{Email}}/g, targetEmail);
 
       try {
         await transporter.sendMail({
           from: `"${userData?.name || 'Solid Models User'}" <${senderEmail}>`,
           to: targetEmail,
-          subject: subject,
+          subject: personalizedSubject,
           text: personalizedBody,
           // html: personalizedBody.replace(/\n/g, '<br>'), // Optional HTML support
         });
@@ -90,19 +102,28 @@ export async function POST(req: Request) {
       }
     }
 
-    // Update campaign record
-    await campaignRef.update({
-      sentCount: sent,
-      failedCount: failed,
-      status: recipients.length > MAX_PER_REQUEST ? 'processing' : 'completed',
-    });
+    if (!isTest && campaignRef) {
+      // Update campaign record
+      await campaignRef.update({
+        sentCount: sent,
+        failedCount: failed,
+        status: recipients.length > 5 ? 'processing' : 'completed',
+      });
+    }
+
+    if (isTest) {
+      return NextResponse.json({ 
+        success: sent > 0, 
+        message: sent > 0 ? 'Test email sent successfully!' : 'Test email failed to send.' 
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 
       campaignId, 
       sent, 
       failed,
-      message: recipients.length > MAX_PER_REQUEST 
+      message: recipients.length > 5 
         ? 'Campaign started! Sending remaining in background...' 
         : 'Campaign completed!' 
     });

@@ -41,6 +41,8 @@ export async function GET(req: NextRequest) {
       chatwoot_api_token: data.chatwoot_api_token || '',
       chatwoot_account_id: data.chatwoot_account_id || '',
       chatwoot_inbox_id: data.chatwoot_inbox_id || '',
+      gmail_email: data.gmail_email || '',
+      gmail_app_password: data.gmail_app_password || '',
     };
 
     return NextResponse.json({ config });
@@ -73,10 +75,11 @@ export async function POST(req: NextRequest) {
       chatwoot_base_url, 
       chatwoot_api_token, 
       chatwoot_account_id, 
-      chatwoot_inbox_id 
+      chatwoot_inbox_id,
+      gmail_email,
+      gmail_app_password,
     } = body;
 
-    // Store sensitive keys as plain text as requested
     const updateData: any = {
       msg91_authkey: msg91_authkey || '',
       msg91_integrated_number: msg91_integrated_number || '',
@@ -86,6 +89,9 @@ export async function POST(req: NextRequest) {
       chatwoot_inbox_id: chatwoot_inbox_id || '',
       updatedAt: new Date(),
     };
+    // Only update Gmail fields if they were explicitly provided
+    if (gmail_email !== undefined) updateData.gmail_email = gmail_email;
+    if (gmail_app_password !== undefined) updateData.gmail_app_password = gmail_app_password;
 
     await adminDb.collection('users').doc(userUid).update(updateData);
 

@@ -81,17 +81,15 @@ export function Sidebar() {
 
   const mainLinks = isGmail ? [
     { href: '/gmail/dashboard', label: 'Gmail Dashboard', icon: LayoutDashboard },
-    { href: '/gmail/campaigns', label: 'Campaigns', icon: Zap, badge: 'Direct' },
   ] : [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/inbox', label: 'Inbox', icon: Inbox, badge: 'WhatsApp' },
   ];
 
   const headOnlyLinks = role !== 'agent' ? (isGmail ? [
+    { href: '/gmail/campaigns', label: 'Campaigns', icon: Zap },
     { href: '/gmail/templates', label: 'Templates', icon: MessageSquare },
     { href: '/gmail/settings', label: 'Gmail Settings', icon: Settings },
-    { href: '/analytics', label: 'Global Stats', icon: BarChart2 },
-    { href: '/team', label: 'Team', icon: Users },
   ] : [
     { href: '/ai-config', label: 'AI Setup', icon: Bot },
     { href: '/analytics', label: 'Analytics', icon: BarChart2 },
