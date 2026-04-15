@@ -103,7 +103,7 @@ export function Sidebar() {
   ] : [];
 
   const supportLinks = [
-    { href: '/help', label: 'Help & Support', icon: HelpCircle },
+    { href: isGmail ? '/gmail/support' : '/help', label: 'Help & Support', icon: HelpCircle },
   ];
 
   // ── Toggle handlers ──────────────────────────────────────────────────────

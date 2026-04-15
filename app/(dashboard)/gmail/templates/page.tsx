@@ -107,25 +107,6 @@ export default function TemplatesPage() {
 
   const previewTemplate = templates.find(t => t.id === previewId);
 
-  const downloadCSVTemplate = async () => {
-    try {
-      // @ts-ignore
-      const XLSX = await import('xlsx');
-      const data = [
-        { Email: "recipient1@gmail.com", Name: "John Doe", Subject: "Your personalized subject here", Body: "Hello {{Name}}! Your custom body here." },
-        { Email: "recipient2@yahoo.com", Name: "Jane Smith", Subject: "Special offer for {{Name}}", Body: "Hi {{Name}}, we have a great offer to share!" },
-      ];
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "CampaignData");
-      XLSX.writeFile(wb, "Campaign_Template.xlsx");
-      toast.success('Excel Template Downloaded!');
-    } catch (error) {
-      toast.error('Failed to generate Excel file.');
-      console.error(error);
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -211,7 +192,7 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {/* Advanced CSV Template Section (Developer/Advanced Mode) */}
+      {/* Excel Template Section */}
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white relative overflow-hidden shadow-lg animate-in fade-in duration-700">
         <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -221,24 +202,24 @@ export default function TemplatesPage() {
             </div>
             <div>
               <h3 className="text-lg font-black uppercase tracking-tight mb-1 flex items-center gap-2">
-                Advanced CSV Template <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-[8px] rounded uppercase tracking-widest border border-blue-500/30">Developer Mode</span>
+                Excel Import Format <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-[8px] rounded uppercase tracking-widest border border-blue-500/30">Auto Fill Features</span>
               </h3>
               <p className="text-[11px] text-slate-300 font-medium max-w-xl leading-relaxed">
-                Want to define unique subjects and body paragraphs for all 500 recipients at once? Download this CSV framework, open it in Excel, map out your campaign offline, and then upload it directly in the new campaign wizard.
+                Send 500 emails at once by downloading this Excel file. Just open it, add your contacts (Email, Name, Subject, and Body text), save it as a CSV or Excel file, and upload it when you create a new campaign!
               </p>
               <div className="flex gap-4 mt-3">
-                <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Custom Subjects</span>
-                <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Custom Bodies</span>
-                <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Offline Editing</span>
+                <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Fill Details in Excel</span>
+                <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Auto-Load Subject</span>
+                <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Auto-Load Body</span>
               </div>
             </div>
           </div>
-          <Button
-            onClick={downloadCSVTemplate}
+          <a
+            href="/api/gmail/download-template"
             className="h-11 px-6 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 flex-shrink-0"
           >
-            <Download className="w-4 h-4" /> Download Framework
-          </Button>
+            <Download className="w-4 h-4" /> Download Excel Format
+          </a>
         </div>
       </div>
 

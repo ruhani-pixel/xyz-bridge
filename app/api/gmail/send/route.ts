@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const userDoc = await adminDb.collection('users').doc(uid).get();
     const userData = userDoc.data();
     const appPassword = userData?.gmail_app_password;
-    const senderEmail = userData?.email;
+    const senderEmail = userData?.gmail_email || userData?.email;
 
     if (!appPassword) {
       return NextResponse.json({ 
