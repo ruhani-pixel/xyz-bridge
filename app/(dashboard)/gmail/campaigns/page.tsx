@@ -201,13 +201,6 @@ export default function CampaignsPage() {
                   <div className="col-span-4 min-w-0">
                     <p className="text-sm font-black text-slate-900 truncate leading-tight">{campaign.name}</p>
                     <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{campaign.subject}</p>
-                    {/* Delivery bar */}
-                    <div className="mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden w-full">
-                      <div
-                        className="h-full bg-emerald-400 rounded-full transition-all duration-700"
-                        style={{ width: `${rate}%` }}
-                      />
-                    </div>
                   </div>
                   {/* Status */}
                   <div className="col-span-2">

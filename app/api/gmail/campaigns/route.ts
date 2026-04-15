@@ -38,7 +38,21 @@ export async function GET(req: NextRequest) {
     const totalFailed = campaigns.reduce((sum, c) => sum + (c.failedCount || 0), 0);
     const totalRecipients = campaigns.reduce((sum, c) => sum + (c.totalRecipients || 0), 0);
 
-    return NextResponse.json({ campaigns, stats: { totalSent, totalFailed, totalRecipients, totalCampaigns: campaigns.length } });
+    // Compute specifically for TODAY's Quota
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const todaySent = campaigns.reduce((sum, c) => {
+      if (new Date(c.createdAt) >= startOfToday) {
+        return sum + (c.sentCount || 0);
+      }
+      return sum;
+    }, 0);
+
+    return NextResponse.json({ 
+      campaigns, 
+      stats: { totalSent, totalFailed, totalRecipients, totalCampaigns: campaigns.length, todaySent } 
+    });
   } catch (err: any) {
     console.error('GET /api/gmail/campaigns error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

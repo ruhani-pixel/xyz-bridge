@@ -7,7 +7,7 @@ import {
   CreditCard, LogOut, ChevronRight, Building2, HelpCircle,
   UserPlus, Globe, Languages, Mail
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,9 +75,30 @@ export function Sidebar() {
   const [signingOut, setSigningOut] = useState(false);
   const [pendingModal, setPendingModal] = useState<ModalKey | null>(null);
   const [showHindi, setShowHindi] = useState(false);
+  const [dailySent, setDailySent] = useState(0);
 
   // ── Navigation links ─────────────────────────────────────────────────────
   const isGmail = pathname.startsWith('/gmail');
+
+  useEffect(() => {
+    if (!isGmail) return;
+    const fetchQuota = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch('/api/gmail/campaigns', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.stats && typeof data.stats.todaySent === 'number') {
+           setDailySent(data.stats.todaySent);
+        }
+      } catch (err) {
+        console.log('Quota fetch failed', err);
+      }
+    };
+    fetchQuota();
+  }, [isGmail, pathname]);
 
   const mainLinks = isGmail ? [
     { href: '/gmail/dashboard', label: 'Gmail Dashboard', icon: LayoutDashboard },
@@ -401,10 +422,13 @@ export function Sidebar() {
              <div className="space-y-1.5">
                 <div className="flex justify-between text-[7px] font-black uppercase text-slate-400">
                    <span>Emails Sent</span>
-                   <span>0 / 500</span>
+                   <span>{dailySent} / 500</span>
                 </div>
                 <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                   <div className="h-full bg-red-500 w-[0%]" />
+                   <div 
+                     className="h-full bg-red-500 transition-all duration-1000" 
+                     style={{ width: `${Math.min(100, (dailySent / 500) * 100)}%` }}
+                   />
                 </div>
              </div>
           </div>

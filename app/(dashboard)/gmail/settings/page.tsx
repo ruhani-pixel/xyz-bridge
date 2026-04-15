@@ -259,10 +259,10 @@ export default function GmailSettingsPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
-                { step: '1', text: 'Go to your Google Account settings', href: 'https://myaccount.google.com' },
-                { step: '2', text: 'Enable 2-Step Verification first', href: 'https://myaccount.google.com/security' },
-                { step: '3', text: 'Click "App Passwords" under Security', href: 'https://myaccount.google.com/apppasswords' },
-                { step: '4', text: 'Select "Mail" → "Windows Computer" → Generate', href: null },
+                { step: '1', text: 'Pehle apna 2-Step Verification ON kar lo Google me', href: 'https://myaccount.google.com/security' },
+                { step: '2', text: 'https://myaccount.google.com/ par jao aur search bar me "App Passwords" likho', href: 'https://myaccount.google.com/' },
+                { step: '3', text: 'App ka naam de do kuch bhi (jaise "SolidModels") aur Create par click karo', href: null },
+                { step: '4', text: 'Jo code mile use yaha upar paste karo aur Save karo', href: null },
               ].map(({ step, text, href }) => (
                 <div key={step} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
                   <span className="w-6 h-6 flex-shrink-0 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-[10px] font-black">

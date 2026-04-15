@@ -11,7 +11,7 @@ export default function GmailSupportPage() {
     },
     {
       q: "Where do I get my App Password?",
-      a: "Go to your Google Account > Security > 2-Step Verification > App Passwords. Generate a new password and paste it in the Gmail Settings here."
+      a: "1. Pehle apna 2-Step Verification ON kar lo Google account me. \n2. Uske baad https://myaccount.google.com/ par jao. Vaha search bar me 'App Passwords' search karo aur us par click karo. \n3. App ka naam de do kuch bhi (jaise 'SolidModels') aur Create par click karo. \n4. Uske baad aapko kuch digits ka code milega. Usko yaha settings me paste kar do, aur jis Gmail ka hai, us email id ko paste karke save kar do, aur connect ho jayega!"
     },
     {
       q: "Will my emails go to Spam?",
@@ -86,19 +86,19 @@ export default function GmailSupportPage() {
                 </a>
 
                 <a 
-                  href="mailto:support@solidmodels.com" 
+                  href="mailto:info.solidmodels@gmail.com" 
                   className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl transition-all group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
                       <Mail className="w-4 h-4 text-red-400" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Email Support</p>
-                      <p className="text-xs font-bold text-white">support@solid.com</p>
+                      <p className="text-[10px] font-bold text-white truncate">info.solidmodels@gmail.com</p>
                     </div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                  <ExternalLink className="w-4 h-4 flex-shrink-0 text-slate-400 group-hover:text-white transition-colors" />
                 </a>
               </div>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { 
+import {
   FileText, Plus, Search, Star, StarOff, Copy, Trash2, Edit3,
   Mail, ChevronRight, CheckCircle2, Eye, Download, FileSpreadsheet
 } from 'lucide-react';
@@ -108,14 +108,8 @@ export default function TemplatesPage() {
   const previewTemplate = templates.find(t => t.id === previewId);
 
   const downloadHardcodedTemplate = () => {
-    const link = document.createElement('a');
-    link.href = '/Campaign_Format.xlsx';
-    link.download = 'SolidModels_Format.xlsx';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Excel File Downloaded!');
+    window.location.href = '/api/gmail/download-template';
+    toast.success('Downloading Excel File Header...');
   };
 
   return (
