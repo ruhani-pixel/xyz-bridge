@@ -1,20 +1,26 @@
 'use client';
+
 import { useAuth } from '@/hooks/useAuth';
 import { auth } from '@/lib/firebase/config';
 import { signOut } from 'firebase/auth';
 import { LogOut, Mail, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { cn } from '@/lib/utils';
+import { useRouter, usePathname } from 'next/navigation';
 
 export function Header() {
   const { user, role } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const handleLogout = async () => {
     document.cookie = 'firebase-token=; path=/; max-age=0';
     localStorage.removeItem('token');
     await signOut(auth);
-    window.location.href = '/login';
+    router.push('/login');
   };
+
+  const isGmail = pathname?.startsWith('/gmail');
 
   return (
     <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-40 sticky top-0">
@@ -22,27 +28,27 @@ export function Header() {
         {/* Panel Switcher */}
         <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50 shadow-inner">
           <button 
-            onClick={() => window.location.href = '/dashboard'}
+            onClick={() => router.push('/dashboard')}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-              !window.location.pathname.startsWith('/gmail') 
+              !isGmail 
                 ? "bg-white text-slate-900 shadow-md scale-100" 
                 : "text-slate-400 hover:text-slate-600 scale-95"
             )}
           >
-            <div className={cn("w-2 h-2 rounded-full", !window.location.pathname.startsWith('/gmail') ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+            <div className={cn("w-2 h-2 rounded-full", !isGmail ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
             WhatsApp Hub
           </button>
           <button 
-            onClick={() => window.location.href = '/gmail/dashboard'}
+            onClick={() => router.push('/gmail/dashboard')}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-              window.location.pathname.startsWith('/gmail') 
+              isGmail 
                 ? "bg-white text-slate-900 shadow-md scale-100 border border-red-100" 
                 : "text-slate-400 hover:text-slate-600 scale-95"
             )}
           >
-            <div className={cn("w-2 h-2 rounded-full", window.location.pathname.startsWith('/gmail') ? "bg-red-500 animate-pulse" : "bg-slate-300")} />
+            <div className={cn("w-2 h-2 rounded-full", isGmail ? "bg-red-500 animate-pulse" : "bg-slate-300")} />
             Gmail Panel
           </button>
         </div>

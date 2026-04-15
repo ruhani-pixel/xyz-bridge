@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    const { appPassword } = await req.json();
+    const { appPassword, senderEmail: requestedEmail } = await req.json();
 
     if (!appPassword) {
       return NextResponse.json({ error: 'App Password is required' }, { status: 400 });
@@ -22,11 +22,9 @@ export async function POST(req: Request) {
     // Get user email
     const userDoc = await adminDb.collection('users').doc(uid).get();
     const userData = userDoc.data();
-    const senderEmail = userData?.email;
-
-    if (!senderEmail) {
-      return NextResponse.json({ error: 'User email not found' }, { status: 400 });
-    }
+    
+    // Priority: 1. Requested Email, 2. Saved Gmail Config Email, 3. Account Email
+    const senderEmail = requestedEmail || userData?.config?.gmail_email || userData?.email;
 
     // Attempt to verify SMTP connection
     const transporter = nodemailer.createTransport({

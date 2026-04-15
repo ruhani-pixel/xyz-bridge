@@ -89,7 +89,7 @@ export function Sidebar() {
 
   const headOnlyLinks = role !== 'agent' ? (isGmail ? [
     { href: '/gmail/templates', label: 'Templates', icon: MessageSquare },
-    { href: '/gmail/settings', label: 'Gmail Setup', icon: Settings },
+    { href: '/gmail/settings', label: 'Gmail Settings', icon: Settings },
     { href: '/analytics', label: 'Global Stats', icon: BarChart2 },
     { href: '/team', label: 'Team', icon: Users },
   ] : [
@@ -328,65 +328,67 @@ export function Sidebar() {
       {/* Bottom Panel */}
       <div className="px-4 pb-4 space-y-3 border-t border-slate-100 pt-4 bg-white relative z-10">
 
-        {/* ── AI Auto-Reply Controls Card ── */}
-        <div className={cn(
-          'rounded-2xl border transition-all duration-500 overflow-hidden',
-          (masterAi || newUserAi) ? 'border-amber-200/60' : 'border-slate-100'
-        )}>
-          {/* Card header */}
+        {!isGmail && (
+          {/* ── AI Auto-Reply Controls Card ── */}
           <div className={cn(
-            'px-3 py-2 flex items-center gap-2 border-b',
-            (masterAi || newUserAi) ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'
+            'rounded-2xl border transition-all duration-500 overflow-hidden',
+            (masterAi || newUserAi) ? 'border-amber-200/60' : 'border-slate-100'
           )}>
-            <div className={cn('w-5 h-5 rounded-md flex items-center justify-center', (masterAi || newUserAi) ? 'bg-amber-400' : 'bg-slate-200')}>
-              <Zap className="w-3 h-3 text-white" />
+            {/* Card header */}
+            <div className={cn(
+              'px-3 py-2 flex items-center gap-2 border-b',
+              (masterAi || newUserAi) ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'
+            )}>
+              <div className={cn('w-5 h-5 rounded-md flex items-center justify-center', (masterAi || newUserAi) ? 'bg-amber-400' : 'bg-slate-200')}>
+                <Zap className="w-3 h-3 text-white" />
+              </div>
+              <div>
+                <span className={cn('text-[9px] font-black uppercase tracking-widest block leading-tight', (masterAi || newUserAi) ? 'text-slate-700' : 'text-slate-500')}>
+                  AI Auto-Reply
+                </span>
+                <span className="text-[7px] text-slate-400 font-bold uppercase tracking-wide">WhatsApp reply controls</span>
+              </div>
             </div>
-            <div>
-              <span className={cn('text-[9px] font-black uppercase tracking-widest block leading-tight', (masterAi || newUserAi) ? 'text-slate-700' : 'text-slate-500')}>
-                AI Auto-Reply
-              </span>
-              <span className="text-[7px] text-slate-400 font-bold uppercase tracking-wide">WhatsApp reply controls</span>
+
+            {/* Toggles */}
+            <div className="p-2 space-y-1.5 bg-white">
+              <AiToggleRow
+                icon={Globe}
+                label="All Existing Chats"
+                sublabel={masterAi ? 'AI replying to everyone' : 'Manual mode — AI off'}
+                active={masterAi}
+                loading={aiLoading}
+                onClick={handleMasterClick}
+                iconColor="text-amber-500"
+              />
+              <AiToggleRow
+                icon={UserPlus}
+                label="New Users (First Message)"
+                sublabel={newUserAi ? 'AI ON for new contacts' : 'AI OFF for new contacts'}
+                active={newUserAi}
+                loading={newUserLoading}
+                onClick={handleNewUserClick}
+                iconColor="text-amber-500"
+              />
+            </div>
+
+            {/* Status hint */}
+            <div className={cn(
+              'px-3 py-1.5 border-t',
+              (masterAi || newUserAi) ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'
+            )}>
+              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tight">
+                {!masterAi && !newUserAi
+                  ? '⛔ AI fully paused — all manual'
+                  : masterAi && newUserAi
+                  ? '✅ AI active for all: existing & new'
+                  : masterAi && !newUserAi
+                  ? '⚡ AI on for existing · off for new'
+                  : '🔔 AI off for existing · on for new users'}
+              </p>
             </div>
           </div>
-
-          {/* Toggles */}
-          <div className="p-2 space-y-1.5 bg-white">
-            <AiToggleRow
-              icon={Globe}
-              label="All Existing Chats"
-              sublabel={masterAi ? 'AI replying to everyone' : 'Manual mode — AI off'}
-              active={masterAi}
-              loading={aiLoading}
-              onClick={handleMasterClick}
-              iconColor="text-amber-500"
-            />
-            <AiToggleRow
-              icon={UserPlus}
-              label="New Users (First Message)"
-              sublabel={newUserAi ? 'AI ON for new contacts' : 'AI OFF for new contacts'}
-              active={newUserAi}
-              loading={newUserLoading}
-              onClick={handleNewUserClick}
-              iconColor="text-amber-500"
-            />
-          </div>
-
-          {/* Status hint */}
-          <div className={cn(
-            'px-3 py-1.5 border-t',
-            (masterAi || newUserAi) ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'
-          )}>
-            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tight">
-              {!masterAi && !newUserAi
-                ? '⛔ AI fully paused — all manual'
-                : masterAi && newUserAi
-                ? '✅ AI active for all: existing & new'
-                : masterAi && !newUserAi
-                ? '⚡ AI on for existing · off for new'
-                : '🔔 AI off for existing · on for new users'}
-            </p>
-          </div>
-        </div>
+        )}
 
         {isGmail && (
           <div className="rounded-2xl border border-red-100 bg-red-50/30 p-3">
@@ -424,10 +426,10 @@ export function Sidebar() {
 
         {/* Plan Badge + Sign Out */}
         <div className="flex items-center gap-2">
-          <Link href="/settings" className="flex-1 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 hover:border-brand-gold/30 transition-all">
-            <CreditCard className="w-3 h-3 text-brand-gold" />
+          <Link href={isGmail ? "/gmail/settings" : "/settings"} className="flex-1 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 hover:border-brand-gold/30 transition-all">
+            {isGmail ? <Mail className="w-3 h-3 text-red-500" /> : <CreditCard className="w-3 h-3 text-brand-gold" />}
             <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 truncate capitalize">
-              {adminData?.planId?.replace('_', ' ') || 'Free Trial'}
+              {isGmail ? "Gmail Setup" : (adminData?.planId?.replace('_', ' ') || 'Free Trial')}
             </span>
           </Link>
           <button
