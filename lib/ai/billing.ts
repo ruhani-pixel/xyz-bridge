@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 // Hardcoded Fallback Prices (USD per 1 Million Tokens)
 // These are used if Firestore pricing is not found.
-const DEFAULT_PRICING: Record<string, { prompt: number; completion: number }> = {
+export const DEFAULT_PRICING: Record<string, { prompt: number; completion: number }> = {
   'gemini-2.0-flash': { prompt: 0.10, completion: 0.40 },
   'gemini-2.0-flash-lite': { prompt: 0.075, completion: 0.30 },
   'gemini-2.5-flash': { prompt: 0.10, completion: 0.40 },
@@ -14,7 +14,7 @@ const DEFAULT_PRICING: Record<string, { prompt: number; completion: number }> = 
   'gpt-4-turbo': { prompt: 10.00, completion: 30.00 },
 };
 
-async function getPricing() {
+export async function getPricing() {
   try {
     const configDoc = await adminDb.collection('system').doc('config').get();
     if (configDoc.exists && configDoc.data()?.ai_pricing) {
@@ -29,11 +29,35 @@ async function getPricing() {
   }
 }
 
+export async function estimateUsageCostUSD(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  thinkingTokens: number = 0,
+) {
+  const pricing = await getPricing();
+  const cleanModel = model.replace('models/', '');
+  const priceSet = pricing[cleanModel] || DEFAULT_PRICING[cleanModel] || DEFAULT_PRICING['gemini-2.0-flash'];
+  const effectiveOutputTokens = outputTokens + thinkingTokens;
+  const inputCost = (inputTokens / 1_000_000) * priceSet.prompt;
+  const outputCost = (effectiveOutputTokens / 1_000_000) * priceSet.completion;
+  const totalCost = inputCost + outputCost;
+
+  return {
+    totalCost,
+    inputCost,
+    outputCost,
+    cleanModel,
+    priceSet,
+    effectiveOutputTokens,
+  };
+}
+
 export async function trackUsage(
-  uid: string, 
-  provider: string, 
-  model: string, 
-  inputTokens: number, 
+  uid: string,
+  provider: string,
+  model: string,
+  inputTokens: number,
   outputTokens: number,
   thinkingTokens: number = 0
 ) {
@@ -43,7 +67,7 @@ export async function trackUsage(
     const pricing = await getPricing();
     const cleanModel = model.replace('models/', '');
     const priceSet = pricing[cleanModel] || DEFAULT_PRICING[cleanModel] || DEFAULT_PRICING['gemini-2.0-flash'];
-    
+
     const effectiveOutputTokens = outputTokens + thinkingTokens;
     const inputCost = (inputTokens / 1_000_000) * priceSet.prompt;
     const outputCost = (effectiveOutputTokens / 1_000_000) * priceSet.completion;

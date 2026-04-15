@@ -33,20 +33,31 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // --- NEW VALIDATION: Check User Config for AI Keys ---
+    // Validation: allow AI ON when user has either own API mode with key,
+    // or SaaS AI mode enabled.
     if (enabled) {
       const userDoc = await adminDb.collection('users').doc(ownerId).get();
       const userData = userDoc.data();
-      
-      if (!userData?.ai_api_key) {
-        return NextResponse.json({ 
-          error: 'AI Setup Missing', 
-          message: 'Bhai, pehle Settings mein jaakar AI API Key (OpenAI ya Gemini) set karein tabhi AI ON kar sakte hain.' 
+
+      const sourceMode = userData?.ai_source_mode || 'saas_ai';
+      const hasOwnKey = !!(userData?.ai_api_key && String(userData.ai_api_key).trim());
+      const saasEnabled = userData?.ai_saas_enabled !== false;
+
+      const canEnable = sourceMode === 'saas_ai'
+        ? saasEnabled
+        : hasOwnKey;
+
+      if (!canEnable) {
+        return NextResponse.json({
+          error: 'AI Setup Missing',
+          message: sourceMode === 'saas_ai'
+            ? 'SaaS AI inactive hai ya wallet setup missing hai. AI Setup page me SaaS AI ON karke retry karein.'
+            : 'Bhai, pehle Settings mein jaakar AI API Key (OpenAI ya Gemini) set karein tabhi AI ON kar sakte hain.'
         }, { status: 400 });
       }
     }
 
-    await contactRef.update({ 
+    await contactRef.update({
       aiEnabled: enabled,
       updatedAt: new Date(),
       // Reset error state if turning ON/OFF
