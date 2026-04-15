@@ -2,8 +2,9 @@
 import { useAuth } from '@/hooks/useAuth';
 import { auth } from '@/lib/firebase/config';
 import { signOut } from 'firebase/auth';
-import { LogOut } from 'lucide-react';
+import { LogOut, Mail, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { cn } from '@/lib/utils';
 
 export function Header() {
   const { user, role } = useAuth();
@@ -18,8 +19,38 @@ export function Header() {
   return (
     <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-40 sticky top-0">
       <div className="flex items-center gap-6 flex-1">
+        {/* Panel Switcher */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50 shadow-inner">
+          <button 
+            onClick={() => window.location.href = '/dashboard'}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+              !window.location.pathname.startsWith('/gmail') 
+                ? "bg-white text-slate-900 shadow-md scale-100" 
+                : "text-slate-400 hover:text-slate-600 scale-95"
+            )}
+          >
+            <div className={cn("w-2 h-2 rounded-full", !window.location.pathname.startsWith('/gmail') ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+            WhatsApp Hub
+          </button>
+          <button 
+            onClick={() => window.location.href = '/gmail/dashboard'}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+              window.location.pathname.startsWith('/gmail') 
+                ? "bg-white text-slate-900 shadow-md scale-100 border border-red-100" 
+                : "text-slate-400 hover:text-slate-600 scale-95"
+            )}
+          >
+            <div className={cn("w-2 h-2 rounded-full", window.location.pathname.startsWith('/gmail') ? "bg-red-500 animate-pulse" : "bg-slate-300")} />
+            Gmail Panel
+          </button>
+        </div>
+
+        <div className="h-6 w-[1px] bg-slate-200 mx-2 hidden md:block" />
+
         {/* Productivity Search Branded Mockup */}
-        <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-xl border border-slate-200/50 w-full max-w-md group focus-within:bg-white focus-within:border-brand-gold/30 transition-all">
+        <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-xl border border-slate-200/50 w-full max-w-xs group focus-within:bg-white focus-within:border-brand-gold/30 transition-all">
           <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Inbox, Bot, Users, Zap, ShieldCheck,
   Download, Settings, BarChart2, Code2, MessageSquare, GitBranch,
   CreditCard, LogOut, ChevronRight, Building2, HelpCircle,
-  UserPlus, Globe, Languages
+  UserPlus, Globe, Languages, Mail
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -77,20 +77,30 @@ export function Sidebar() {
   const [showHindi, setShowHindi] = useState(false);
 
   // ── Navigation links ─────────────────────────────────────────────────────
-  const mainLinks = [
+  const isGmail = pathname.startsWith('/gmail');
+
+  const mainLinks = isGmail ? [
+    { href: '/gmail/dashboard', label: 'Gmail Dashboard', icon: LayoutDashboard },
+    { href: '/gmail/campaigns', label: 'Campaigns', icon: Zap, badge: 'Direct' },
+  ] : [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/inbox', label: 'Inbox', icon: Inbox, badge: 'WhatsApp' },
   ];
 
-  const headOnlyLinks = role !== 'agent' ? [
+  const headOnlyLinks = role !== 'agent' ? (isGmail ? [
+    { href: '/gmail/templates', label: 'Templates', icon: MessageSquare },
+    { href: '/gmail/settings', label: 'Gmail Setup', icon: Settings },
+    { href: '/analytics', label: 'Global Stats', icon: BarChart2 },
+    { href: '/team', label: 'Team', icon: Users },
+  ] : [
     { href: '/ai-config', label: 'AI Setup', icon: Bot },
     { href: '/analytics', label: 'Analytics', icon: BarChart2 },
     { href: '/widget', label: 'Website Widget', icon: Code2 },
     { href: '/team', label: 'Team', icon: Users },
     { href: '/settings', label: 'Settings & API', icon: Settings },
-  ] : [];
+  ]) : [];
 
-  const adminLinks = role === 'superadmin' ? [
+  const adminLinks = (role === 'superadmin' && !isGmail) ? [
     { href: '/logs', label: 'System Logs', icon: ShieldCheck },
   ] : [];
 
@@ -258,16 +268,24 @@ export function Sidebar() {
 
       {/* Brand Header */}
       <div className="px-6 py-6 border-b border-slate-100">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
+        <Link href={isGmail ? "/gmail/dashboard" : "/dashboard"} className="flex items-center gap-3 group">
           <div className="relative w-10 h-10 flex-shrink-0">
-            <div className="absolute inset-0 bg-brand-gold/20 blur-lg rounded-xl group-hover:bg-brand-gold/30 transition-all" />
-            <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md border border-slate-100 p-1.5">
-              <img src="/logopro.png" alt="Solid Models" className="w-full h-full object-contain" />
+            <div className={cn("absolute inset-0 blur-lg rounded-xl transition-all", isGmail ? "bg-red-500/20 group-hover:bg-red-500/30" : "bg-brand-gold/20 group-hover:bg-brand-gold/30")} />
+            <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md border border-slate-100 p-1.5 overflow-hidden">
+               {isGmail ? (
+                 <Mail className="w-6 h-6 text-red-500" />
+               ) : (
+                 <img src="/logopro.png" alt="Solid Models" className="w-full h-full object-contain" />
+               )}
             </div>
           </div>
           <div>
-            <span className="text-sm font-black text-slate-900 tracking-tight uppercase block leading-tight">Solid Models</span>
-            <span className="text-[8px] text-brand-gold font-bold uppercase tracking-[0.15em]">AI Platform</span>
+            <span className="text-sm font-black text-slate-900 tracking-tight uppercase block leading-tight">
+              {isGmail ? "Gmail Panel" : "Solid Models"}
+            </span>
+            <span className={cn("text-[8px] font-bold uppercase tracking-[0.15em]", isGmail ? "text-red-500" : "text-brand-gold")}>
+              {isGmail ? "Email Platform" : "AI Platform"}
+            </span>
           </div>
         </Link>
 
@@ -297,14 +315,14 @@ export function Sidebar() {
             <div className="pt-3 pb-1 px-4">
               <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Admin</span>
             </div>
-            {adminLinks.map((link) => <NavLink key={link.href} {...link} />)}
+            {adminLinks.map((link: any) => <NavLink key={link.href} {...link} />)}
           </>
         )}
 
         <div className="pt-3 pb-1 px-4">
           <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Support</span>
         </div>
-        {supportLinks.map((link) => <NavLink key={link.href} {...link} />)}
+        {supportLinks.map((link: any) => <NavLink key={link.href} {...link} />)}
       </nav>
 
       {/* Bottom Panel */}
@@ -369,6 +387,26 @@ export function Sidebar() {
             </p>
           </div>
         </div>
+
+        {isGmail && (
+          <div className="rounded-2xl border border-red-100 bg-red-50/30 p-3">
+             <div className="flex items-center gap-2 mb-2">
+                <div className="p-1 bg-red-500 rounded-lg">
+                   <Mail className="w-3 h-3 text-white" />
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Daily Quota</span>
+             </div>
+             <div className="space-y-1.5">
+                <div className="flex justify-between text-[7px] font-black uppercase text-slate-400">
+                   <span>Emails Sent</span>
+                   <span>0 / 500</span>
+                </div>
+                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                   <div className="h-full bg-red-500 w-[0%]" />
+                </div>
+             </div>
+          </div>
+        )}
 
         {/* PWA Install */}
         {isInstallable && (

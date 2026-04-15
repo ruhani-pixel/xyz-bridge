@@ -8,19 +8,21 @@ import { cn } from '@/lib/utils';
 import { 
   Settings as SettingsIcon, Lock, UserCog, Link as LinkIcon, Copy, CheckCircle2,
   CreditCard, Zap, Shield, Clock, Rocket, ArrowUpRight, GitBranch, AlertTriangle,
-  MessageSquare, Globe
+  MessageSquare, Globe, Mail, Key
 } from 'lucide-react';
 import { PLANS } from '@/lib/plans';
 import { toast } from 'sonner';
 import { MSG91SecurityGuide } from '@/components/ui/MSG91SecurityGuide';
+import { GmailSecurityGuide } from '@/components/ui/GmailSecurityGuide';
 
 export default function SettingsPage() {
   const { role, user, adminData, loading: authLoading } = useAuth();
   const [originUrl, setOriginUrl] = useState('');
   const [copiedMsg, setCopiedMsg] = useState(false);
   const [copiedChat, setCopiedChat] = useState(false);
-  const [activeTab, setActiveTab] = useState<'api' | 'plan' | 'bridge'>('api');
+  const [activeTab, setActiveTab] = useState<'api' | 'gmail' | 'plan' | 'bridge'>('api');
   const [showSecurityGuide, setShowSecurityGuide] = useState(false);
+  const [showGmailGuide, setShowGmailGuide] = useState(false);
   const [securityGuideType, setSecurityGuideType] = useState<'ip_blocked' | 'auth_failed'>('ip_blocked');
 
   // Config State
@@ -31,6 +33,7 @@ export default function SettingsPage() {
     chatwoot_api_token: '',
     chatwoot_account_id: '',
     chatwoot_inbox_id: '',
+    gmail_app_password: '',
   });
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -102,6 +105,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'api' as const, label: 'API & Webhooks', icon: LinkIcon },
+    { id: 'gmail' as const, label: 'Mailing System', icon: Mail },
     { id: 'plan' as const, label: 'Subscription', icon: CreditCard },
     { id: 'bridge' as const, label: 'Bridge Mode', icon: GitBranch },
   ];
@@ -313,6 +317,91 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* TAB: Gmail Mailing System */}
+      {activeTab === 'gmail' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+           <Card className="bg-white border-slate-200 shadow-sm rounded-3xl overflow-hidden">
+             <CardHeader className="border-b border-slate-100 p-6">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                      <div className="p-2 bg-red-50 rounded-xl"><Mail className="w-5 h-5 text-red-500" /></div>
+                      <div>
+                         <CardTitle className="text-sm font-black uppercase tracking-tight">Gmail SMTP Configuration</CardTitle>
+                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Send mass emails securely</p>
+                      </div>
+                   </div>
+                   <button 
+                     onClick={() => setShowGmailGuide(true)}
+                     className="px-3 py-1.5 bg-red-50 text-[10px] font-black text-red-600 rounded-lg hover:bg-red-100 transition-all uppercase tracking-widest flex items-center gap-2"
+                   >
+                     <Key className="w-3.5 h-3.5" /> How to Setup?
+                   </button>
+                </div>
+             </CardHeader>
+             <CardContent className="p-6">
+                <form onSubmit={handleSaveConfig} className="space-y-6">
+                   <div className="max-w-2xl space-y-6">
+                      <div className="space-y-4 p-8 bg-slate-50 border border-slate-100 rounded-[2rem]">
+                         <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gmail App Password</label>
+                            <button 
+                              type="button"
+                              onClick={async () => {
+                                if (!config.gmail_app_password) {
+                                  toast.error('Please enter App Password first');
+                                  return;
+                                }
+                                const loading = toast.loading('Verifying SMTP Connection...');
+                                try {
+                                  const res = await fetch('/api/gmail/verify', {
+                                    method: 'POST',
+                                    headers: { 
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                    },
+                                    body: JSON.stringify({ appPassword: config.gmail_app_password })
+                                  });
+                                  const data = await res.json();
+                                  toast.dismiss(loading);
+                                  if (data.success) toast.success('Connection Verified! Ready to send.');
+                                  else toast.error(data.error || 'Connection Failed');
+                                } catch {
+                                  toast.dismiss(loading);
+                                  toast.error('Server error. Try again later.');
+                                }
+                              }}
+                              className="text-[9px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest flex items-center gap-1 transition-all"
+                            >
+                              <Zap className="w-3.5 h-3.5 fill-current" /> Test Connection
+                            </button>
+                         </div>
+                         <input 
+                           type="password" 
+                           value={config.gmail_app_password}
+                           onChange={(e) => setConfig({...config, gmail_app_password: e.target.value})}
+                           placeholder="xxxx xxxx xxxx xxxx"
+                           className="w-full h-14 px-6 bg-white border border-slate-200 rounded-xl font-mono text-sm focus:outline-none focus:border-red-500/20 transition-all text-slate-900"
+                         />
+                         <div className="flex items-start gap-2 pt-2">
+                            <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                               Daily Limit: 500 recipients (as per Google policy)
+                            </p>
+                         </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button type="submit" disabled={saving} className="h-12 px-10 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl">
+                          {saving ? 'Saving...' : 'Save Gmail Settings'}
+                        </Button>
+                      </div>
+                   </div>
+                </form>
+             </CardContent>
+            </Card>
+        </div>
+      )}
+
       {/* TAB: Subscription */}
       {activeTab === 'plan' && (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -413,6 +502,12 @@ export default function SettingsPage() {
         isOpen={showSecurityGuide} 
         onClose={() => setShowSecurityGuide(false)}
         errorType={securityGuideType}
+      />
+
+      {/* Gmail Setup Guide Popup */}
+      <GmailSecurityGuide 
+        isOpen={showGmailGuide} 
+        onClose={() => setShowGmailGuide(false)}
       />
     </div>
   );
