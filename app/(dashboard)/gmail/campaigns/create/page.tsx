@@ -93,35 +93,35 @@ export default function CreateCampaignPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="space-y-10"
+            className="space-y-6"
           >
-            <div className="text-center max-w-2xl mx-auto mb-16">
-               <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-4">Select Target Audience</h2>
-               <p className="text-sm text-slate-500 font-medium">Choose how you want to provide the list of recipients for this campaign.</p>
+            <div className="text-center max-w-2xl mx-auto mb-8">
+               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Select Target Audience</h2>
+               <p className="text-[13px] text-slate-500 font-medium">Choose how to provide the list of recipients.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
                {/* File Upload Option */}
                <div 
                  onClick={() => setImportType('file')}
                  className={cn(
-                   "group relative overflow-hidden rounded-[3rem] border-2 transition-all p-12 cursor-pointer",
-                   importType === 'file' ? "border-red-500 bg-red-50/10 shadow-xl" : "border-slate-100 hover:border-slate-200 bg-white"
+                   "group relative overflow-hidden rounded-2xl border-2 transition-all p-8 cursor-pointer",
+                   importType === 'file' ? "border-red-500 bg-red-50/10 shadow-lg" : "border-slate-100 hover:border-slate-200 bg-white"
                  )}
                >
                   <div className="flex flex-col items-center text-center">
-                     <div className={cn("w-20 h-20 rounded-[2rem] flex items-center justify-center mb-8 transition-transform group-hover:scale-110 duration-500", importType === 'file' ? "bg-red-500 text-white" : "bg-slate-100 text-slate-400")}>
-                        <Upload className="w-8 h-8" />
+                     <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 duration-500", importType === 'file' ? "bg-red-500 text-white" : "bg-slate-100 text-slate-400")}>
+                        <Upload className="w-5 h-5" />
                      </div>
-                     <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Import Spreadsheet</h3>
-                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                        Drag & Drop CSV or Excel files.<br/>Auto-column detection.
+                     <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">Import Spreadsheet</h3>
+                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                        Drag & Drop CSV or Excel.<br/>Auto-detection enabled.
                      </p>
                   </div>
                   {importType === 'file' && (
-                    <div className="mt-8 animate-in fade-in slide-in-from-top-4">
+                    <div className="mt-6 animate-in fade-in slide-in-from-top-4">
                        <input type="file" id="campaign-file" className="hidden" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} />
-                       <label htmlFor="campaign-file" className="w-full inline-flex items-center justify-center h-12 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest cursor-pointer transition-all">
+                       <label htmlFor="campaign-file" className="w-full inline-flex items-center justify-center h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest cursor-pointer transition-all">
                           Select File
                        </label>
                     </div>
@@ -132,28 +132,28 @@ export default function CreateCampaignPage() {
                <div 
                  onClick={() => setImportType('manual')}
                  className={cn(
-                   "group relative overflow-hidden rounded-[3rem] border-2 transition-all p-12 cursor-pointer",
-                   importType === 'manual' ? "border-slate-900 bg-slate-900 text-white shadow-xl" : "border-slate-100 hover:border-slate-200 bg-white"
+                   "group relative overflow-hidden rounded-2xl border-2 transition-all p-8 cursor-pointer",
+                   importType === 'manual' ? "border-slate-900 bg-slate-900 text-white shadow-lg" : "border-slate-100 hover:border-slate-200 bg-white"
                  )}
                >
                   <div className="flex flex-col items-center text-center">
-                     <div className={cn("w-20 h-20 rounded-[2rem] flex items-center justify-center mb-8 transition-transform group-hover:scale-110 duration-500", importType === 'manual' ? "bg-white text-slate-900" : "bg-slate-100 text-slate-400")}>
-                        <ListPlus className="w-8 h-8" />
+                     <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 duration-500", importType === 'manual' ? "bg-white text-slate-900" : "bg-slate-100 text-slate-400")}>
+                        <ListPlus className="w-5 h-5" />
                      </div>
-                     <h3 className={cn("text-xl font-black uppercase tracking-tight mb-2", importType === 'manual' ? "text-white" : "text-slate-900")}>Manual Input</h3>
-                     <p className={cn("text-[11px] font-bold uppercase tracking-widest leading-relaxed", importType === 'manual' ? "text-white/50" : "text-slate-400")}>
-                        Paste a list of email addresses.<br/>One per line.
+                     <h3 className={cn("text-lg font-black uppercase tracking-tight mb-2", importType === 'manual' ? "text-white" : "text-slate-900")}>Manual Input</h3>
+                     <p className={cn("text-[10px] font-bold uppercase tracking-widest leading-relaxed", importType === 'manual' ? "text-white/50" : "text-slate-400")}>
+                        Paste email addresses.<br/>One per line.
                      </p>
                   </div>
                   {importType === 'manual' && (
-                    <div className="mt-8 space-y-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-top-4">
                        <textarea 
                         value={manualInput}
                         onChange={(e) => setManualInput(e.target.value)}
                         placeholder="example@gmail.com&#10;user@domain.com"
-                        className="w-full h-32 bg-white/10 border border-white/20 rounded-2xl p-4 text-xs font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-white/40 transition-all resize-none"
+                        className="w-full h-24 bg-white/10 border border-white/20 rounded-xl p-3 text-[10px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-white/40 transition-all resize-none"
                        />
-                       <Button onClick={processManualInput} className="w-full h-12 bg-white text-slate-900 hover:bg-white/90 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl">
+                       <Button onClick={processManualInput} className="w-full h-10 bg-white text-slate-900 hover:bg-white/90 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg">
                           Process List
                        </Button>
                     </div>
@@ -168,43 +168,43 @@ export default function CreateCampaignPage() {
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="max-w-4xl mx-auto space-y-10"
+            className="max-w-4xl mx-auto space-y-6"
           >
-             <div className="flex items-center justify-between border-b border-slate-100 pb-8">
+             <div className="flex items-center justify-between border-b border-slate-100 pb-6">
                 <div>
-                   <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-2">Compose Campaign</h2>
-                   <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
-                      <Users className="w-4 h-4 text-red-500" /> Sending to {recipients.length} recipients
+                   <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Compose Campaign</h2>
+                   <p className="text-[12px] text-slate-500 font-medium flex items-center gap-2">
+                      <Users className="w-3.5 h-3.5 text-red-500" /> Sending to {recipients.length} recipients
                    </p>
                 </div>
-                <Button onClick={() => setStep('import')} variant="ghost" className="text-slate-400 hover:text-slate-900 font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
-                   <ArrowLeft className="w-4 h-4" /> Change Audience
+                <Button onClick={() => setStep('import')} variant="ghost" className="text-slate-400 hover:text-slate-900 font-black uppercase text-[9px] tracking-widest flex items-center gap-2">
+                   <ArrowLeft className="w-3.5 h-3.5" /> Back
                 </Button>
              </div>
 
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                 <div className="lg:col-span-2 space-y-8">
-                   <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject Line</label>
+                   <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Subject Line</label>
                       <input 
                         type="text" 
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
                         placeholder="High conversion subject..."
-                        className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl px-6 font-bold text-slate-900 focus:outline-none focus:border-red-500/20 transition-all"
+                        className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-900 focus:outline-none focus:border-red-500/20 transition-all text-sm"
                       />
                    </div>
 
-                   <div className="space-y-4">
+                   <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email Body</label>
-                         <div className="flex items-center gap-3">
-                            <span className="text-[8px] font-black uppercase text-red-500/50">Personalization Tags:</span>
+                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email Body</label>
+                         <div className="flex items-center gap-2 text-[8px] font-black uppercase text-red-500/50">
+                            Personalization:
                             {['Name', 'Email'].map(tag => (
                               <button 
                                 key={tag} 
                                 onClick={() => setBody(b => b + `{{${tag}}}`)}
-                                className="px-2 py-1 bg-red-50 text-[8px] font-black text-red-600 rounded-md border border-red-100 hover:bg-red-100 transition-all"
+                                className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded-md border border-red-100 hover:bg-red-100"
                               >
                                 + {tag}
                               </button>
@@ -214,8 +214,8 @@ export default function CreateCampaignPage() {
                       <textarea 
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
-                        placeholder="Write your message here. Use {{Name}} to personalize content."
-                        className="w-full h-96 bg-slate-50 border border-slate-100 rounded-3xl p-8 text-sm font-medium text-slate-600 focus:outline-none focus:border-red-500/20 transition-all resize-none leading-relaxed"
+                        placeholder="Write message... Use {{Name}}"
+                        className="w-full h-64 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[13px] font-medium text-slate-600 focus:outline-none focus:border-red-500/20 transition-all resize-none leading-relaxed"
                       />
                    </div>
                 </div>
@@ -264,32 +264,32 @@ export default function CreateCampaignPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-3xl mx-auto space-y-12"
+            className="max-w-2xl mx-auto space-y-8"
           >
              <div className="text-center">
-                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-8">
-                   <Rocket className="w-10 h-10 text-red-500 animate-bounce" />
+                <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                   <Rocket className="w-7 h-7 text-red-500 animate-bounce" />
                 </div>
-                <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tight mb-4">Final Review</h2>
-                <p className="text-sm text-slate-500 font-medium">Please verify all details before launching the infrastructure.</p>
+                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Final Review</h2>
+                <p className="text-[13px] text-slate-500 font-medium">Verify details before launching the campaign.</p>
              </div>
 
-             <div className="space-y-6">
-                <div className="bg-white border border-slate-100 rounded-[3rem] p-12 space-y-8 shadow-sm">
-                   <div className="grid grid-cols-2 gap-12 border-b border-slate-100 pb-8">
+             <div className="space-y-4">
+                <div className="bg-white border border-slate-100 rounded-2xl p-8 space-y-6 shadow-sm">
+                   <div className="grid grid-cols-2 gap-8 border-b border-slate-100 pb-6">
                       <div>
-                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Recipients</label>
-                         <p className="text-xl font-black text-slate-900">{recipients.length} Emails</p>
+                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Recipients</label>
+                         <p className="text-lg font-black text-slate-900">{recipients.length} Emails</p>
                       </div>
                       <div>
-                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Sender Identity</label>
-                         <p className="text-xl font-black text-slate-900">{user?.displayName || 'Your Profile'}</p>
+                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Admin</label>
+                         <p className="text-lg font-black text-slate-900 truncate">{user?.displayName?.split(' ')[0] || 'Profile'}</p>
                       </div>
                    </div>
                    
-                   <div className="space-y-2">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Subject</label>
-                      <p className="text-lg font-bold text-slate-700">{subject}</p>
+                   <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Subject</label>
+                      <p className="text-md font-bold text-slate-700 truncate">{subject}</p>
                    </div>
                 </div>
 
@@ -303,15 +303,15 @@ export default function CreateCampaignPage() {
              </div>
 
              <div className="flex gap-4">
-                <Button onClick={() => setStep('compose')} className="flex-1 h-16 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-3xl font-black uppercase text-[11px] tracking-widest transition-all">
-                   Back to Compose
+                <Button onClick={() => setStep('compose')} className="flex-1 h-12 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">
+                   Back
                 </Button>
                 <Button 
                    onClick={handleLaunch} 
                    disabled={isProcessing}
-                   className="flex-[2] h-16 bg-red-500 hover:bg-red-600 text-white rounded-3xl font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl shadow-red-500/20 flex items-center justify-center gap-4 transition-all"
+                   className="flex-[2] h-12 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 flex items-center justify-center gap-3 transition-all"
                 >
-                   {isProcessing ? 'Launching...' : 'Ignite Campaign'} <Send className="w-5 h-5 flex-shrink-0" />
+                   {isProcessing ? 'Launching...' : 'Ignite Campaign'} <Send className="w-4 h-4 flex-shrink-0" />
                 </Button>
              </div>
           </motion.div>
@@ -322,8 +322,8 @@ export default function CreateCampaignPage() {
   return (
     <div className="pb-20 pt-6">
        {/* Stepper Header */}
-       <div className="max-w-md mx-auto mb-16 relative">
-          <div className="absolute top-1/2 left-0 w-full h-[2px] bg-slate-100 -translate-y-1/2 z-0" />
+       <div className="max-w-xs mx-auto mb-10 relative">
+          <div className="absolute top-1/2 left-0 w-full h-[1px] bg-slate-100 -translate-y-1/2 z-0" />
           <div className="relative z-10 flex justify-between items-center">
              {[
                { id: 'import', label: 'Audience', icon: Users },
@@ -333,15 +333,15 @@ export default function CreateCampaignPage() {
                const isActive = s.id === step;
                const isCompleted = ['import', 'compose', 'review'].indexOf(step) > idx;
                return (
-                 <div key={s.id} className="flex flex-col items-center gap-3">
+                 <div key={s.id} className="flex flex-col items-center gap-2">
                     <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-2",
-                      isActive ? "bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20 rotate-12" : 
+                      "w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-500 border-2",
+                      isActive ? "bg-red-500 text-white border-red-500 shadow-md rotate-6" : 
                       isCompleted ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-slate-300 border-slate-100"
                     )}>
-                       {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <s.icon className="w-5 h-5" />}
+                       {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <s.icon className="w-4 h-4" />}
                     </div>
-                    <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-slate-900" : "text-slate-400")}>{s.label}</span>
+                    <span className={cn("text-[8px] font-black uppercase tracking-widest", isActive ? "text-slate-900" : "text-slate-400")}>{s.label}</span>
                  </div>
                );
              })}

@@ -22,27 +22,27 @@ export default function GmailDashboardPage() {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-1000">
       {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 mb-2 uppercase leading-none">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 mb-1 uppercase leading-none">
             Email <span className="text-red-500">Command</span> Center
           </h1>
           <div className="flex items-center gap-3">
-             <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
-                <Zap className="w-3 h-3 fill-current" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Gmail Integrated</span>
+             <div className="flex items-center gap-2 px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100">
+                <Zap className="w-2.5 h-2.5 fill-current" />
+                <span className="text-[8px] font-black uppercase tracking-widest">Gmail Integrated</span>
              </div>
-             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] opacity-80">
+             <p className="text-slate-400 font-bold text-[9px] uppercase tracking-[0.2em] opacity-80">
                Ultra-Fast Mass Mailing Infrastructure
              </p>
           </div>
         </div>
         
         <Link href="/gmail/campaigns/create">
-            <Button className="h-14 px-8 bg-slate-900 hover:bg-slate-800 text-white rounded-[1.5rem] shadow-2xl shadow-slate-900/20 font-black uppercase text-[11px] tracking-[0.15em] flex items-center gap-3 group transition-all hover:scale-[1.02] active:scale-95">
-                <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-500" />
+            <Button className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-xl shadow-slate-900/10 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 group transition-all hover:scale-[1.02] active:scale-95">
+                <Plus className="w-3.5 h-3.5 transition-transform group-hover:rotate-90 duration-500" />
                 Launch New Campaign
             </Button>
         </Link>
@@ -50,21 +50,21 @@ export default function GmailDashboardPage() {
 
       {/* Connection Warning / Guide (Only if not connected) */}
       {!hasAppPassword && (
-        <div className="relative group overflow-hidden rounded-[3rem] border border-red-100 bg-white p-1">
+        <div className="relative group overflow-hidden rounded-[2rem] border border-red-100 bg-white p-1">
            <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-red-500/0 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-700" />
-           <div className="relative flex flex-col lg:flex-row items-center gap-8 p-10 lg:p-14">
-              <div className="w-24 h-24 bg-red-100 rounded-[2.5rem] flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/10">
-                 <AlertCircle className="w-10 h-10 text-red-500" />
+           <div className="relative flex flex-col lg:flex-row items-center gap-6 p-8 lg:p-10">
+              <div className="w-16 h-16 bg-red-100 rounded-[1.5rem] flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/10">
+                 <AlertCircle className="w-7 h-7 text-red-500" />
               </div>
               <div className="flex-1 text-center lg:text-left">
-                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Gmail Setup Needed</h2>
-                 <p className="text-sm text-slate-500 font-medium leading-relaxed max-w-xl">
-                   To start sending mass emails, you need to connect your Google Account via an <span className="text-red-500 font-black">App Password</span>. This is a secure 16-character code that allows our platform to send emails on your behalf safely.
+                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Gmail Setup Needed</h2>
+                 <p className="text-[13px] text-slate-500 font-medium leading-relaxed max-w-xl">
+                   To start sending mass emails, you need to connect your Google Account via an <span className="text-red-500 font-black">App Password</span>. This is a secure 16-character code.
                  </p>
               </div>
               <Link href="/gmail/settings">
-                 <Button className="h-14 px-10 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 flex items-center gap-3">
-                   Configure Now <ArrowRight className="w-4 h-4" />
+                 <Button className="h-12 px-8 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-red-500/20 flex items-center gap-2">
+                   Configure Now <ArrowRight className="w-3.5 h-3.5" />
                  </Button>
               </Link>
            </div>
@@ -100,17 +100,17 @@ export default function GmailDashboardPage() {
       </div>
 
       {/* Recent Activity & Quick Tips */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 relative group overflow-hidden bg-white border border-slate-100 rounded-[3rem] p-12 transition-all hover:border-slate-200">
-           <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center">
-                    <Mail className="w-6 h-6 text-white" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 relative group overflow-hidden bg-white border border-slate-100 rounded-[2rem] p-8 transition-all hover:border-slate-200">
+           <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-white" />
                  </div>
-                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Recent Campaigns</h3>
+                 <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Recent Campaigns</h3>
               </div>
-              <Link href="/gmail/campaigns" className="text-[10px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors flex items-center gap-2">
-                 View All <ArrowRight className="w-3 h-3" />
+              <Link href="/gmail/campaigns" className="text-[9px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors flex items-center gap-2">
+                 View All <ArrowRight className="w-2.5 h-2.5" />
               </Link>
            </div>
 
@@ -153,10 +153,10 @@ export default function GmailDashboardPage() {
            </div>
 
            {/* Help Card */}
-           <div className="bg-slate-50 border border-slate-200 rounded-[3rem] p-10 flex flex-col items-center text-center">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Need Help?</h4>
-              <p className="text-[11px] text-slate-500 font-bold mb-6">Our experts are online to help you with SMTP configuration.</p>
-              <Button variant="ghost" className="w-full h-12 rounded-2xl border border-slate-200 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all">
+           <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-8 flex flex-col items-center text-center">
+              <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Need Help?</h4>
+              <p className="text-[10px] text-slate-500 font-bold mb-5">Our experts are online to help you with SMTP configuration.</p>
+              <Button variant="ghost" className="w-full h-10 rounded-xl border border-slate-200 text-slate-900 font-black uppercase text-[9px] tracking-widest hover:bg-white transition-all">
                 Talk to Support
               </Button>
            </div>
