@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest) {
     // Or if you want agents to be able to do it too, you can remove this check.
     // Given the "70% control" requirement, Head usually handles global settings.
     if (userData.role === 'agent') {
-       return NextResponse.json({ error: 'Only the Company Head can toggle the Master AI Pilot.' }, { status: 403 });
+       return NextResponse.json({ error: 'Only the Company Head can toggle the Master AI Auto-Reply.' }, { status: 403 });
     }
 
     // 2. Update the Tenant's globalAiEnabled flag
@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ 
        success: true, 
-       message: `Master AI Pilot ${enabled ? 'Engaged' : 'Disengaged'}. Updated ${contactsQuery.size} contacts.` 
+       message: `Master AI Auto-Reply ${enabled ? 'Enabled' : 'Disabled'}. Updated ${contactsQuery.size} contacts.` 
     });
 
   } catch (error: any) {

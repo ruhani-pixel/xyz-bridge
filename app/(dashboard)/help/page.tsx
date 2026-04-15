@@ -64,8 +64,12 @@ export default function HelpPage() {
       a: "Go to the 'Settings & API' tab in your dashboard. You will see a QR code or an option to connect your WhatsApp via our secure bridge. Simply scan it with your phone, and you are live." 
     },
     { 
-      q: "How does the 'AI Pilot' toggle work?", 
-      a: "The AI Pilot in the sidebar is your master switch. When it's ON, the AI will reply to all incoming messages automatically. When it's OFF, you stay in Manual Mode, and replies won't be sent by the AI unless you enable it for specific chats." 
+      q: "How does the 'AI Auto-Reply' toggle work?", 
+      a: "The 'All Existing Chats' toggle in the sidebar is your master switch for all current contacts. When it is ON, the AI automatically replies to every existing contact. When it is OFF, all existing chats go to Manual Mode. You can still turn AI on/off for individual chats at any time from inside the Inbox." 
+    },
+    { 
+      q: "What is the 'AI for New Users' toggle?", 
+      a: "This is a separate control just below the main AI toggle. It decides what happens when a brand-new contact messages you for the very first time. If it is ON, the AI is automatically enabled for that new contact. If it is OFF, new contacts will start in Manual Mode — even if the main AI switch is ON. This is perfect for SaaS owners who want to review new leads before letting the AI take over." 
     },
     { 
       q: "Can I use my own OpenAI or Gemini API keys?", 
