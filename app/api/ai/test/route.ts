@@ -45,7 +45,16 @@ function resolveModel(provider: 'openai' | 'google', model: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    let { uid, provider, apiKey, model, systemPrompt, temperature, maxTokens, messages, input } = await req.json();
+    let { uid, provider, apiKey, model, systemPrompt, temperature, maxTokens, messages, input, sourceMode } = await req.json();
+
+    const isSaas = sourceMode === 'saas_ai';
+    
+    // SaaS mode overrides provider and model for fixed efficiency
+    if (isSaas) {
+      provider = 'google';
+      model = 'gemini-2.0-flash-lite';
+      apiKey = process.env.GOOGLE_API_KEY;
+    }
 
     provider = normalizeProvider(provider);
     model = resolveModel(provider, model);
@@ -56,13 +65,15 @@ export async function POST(req: NextRequest) {
     const safeTemperature = Number.isFinite(Number(temperature)) ? Math.max(0, Math.min(1, Number(temperature))) : 0.7;
     const safeMaxTokens = Number.isFinite(Number(maxTokens)) ? Math.max(64, Math.min(4096, Number(maxTokens))) : 1000;
 
-    if (!apiKey) {
-      apiKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GOOGLE_API_KEY;
-      if (!provider && apiKey) provider = 'google';
+    if (!isSaas && (!apiKey || String(apiKey).trim() === '')) {
+      return NextResponse.json({ 
+        error: 'AI Setup Missing', 
+        message: 'Bhai, "Own API" mode me aapko apni API Key daalna jruri hai. Ya fir SaaS AI select karein.' 
+      }, { status: 400 });
     }
 
     if (!apiKey) {
-      return NextResponse.json({ error: 'Please enter an API key first (No master key found)' }, { status: 400 });
+      return NextResponse.json({ error: 'System key missing. Please check .env configuration.' }, { status: 500 });
     }
 
     if (!input) {

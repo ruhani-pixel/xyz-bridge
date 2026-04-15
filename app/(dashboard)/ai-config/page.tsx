@@ -134,6 +134,12 @@ export default function AIConfigPage() {
   const handleSave = async () => {
     if (!user) return;
     setLoading(true);
+    if (config.ai_source_mode === 'own_api' && !config.ai_api_key?.trim()) {
+      toast.error('Own API select kiya hai to API Key daalna jruri hai bhai!');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/user/update-ai-config', {
         method: 'POST',
@@ -220,7 +226,8 @@ export default function AIConfigPage() {
           temperature: config.ai_temperature,
           maxTokens: config.ai_max_tokens,
           messages: testMessages,
-          input: newMessage.content
+          input: newMessage.content,
+          sourceMode: config.ai_source_mode
         })
       });
 
@@ -386,7 +393,7 @@ export default function AIConfigPage() {
                       config.ai_provider === p.id
                         ? "border-brand-gold bg-brand-gold/5 shadow-lg"
                         : "border-slate-50 hover:border-slate-200 bg-slate-50/50",
-                      isSaasMode && 'opacity-50 cursor-not-allowed'
+                      isSaasMode && 'opacity-50 cursor-not-allowed grayscale-[0.5]'
                     )}
                   >
                     <div className={cn(
@@ -403,9 +410,14 @@ export default function AIConfigPage() {
                 ))}
               </div>
 
-              <div className="space-y-4">
+              <div className={cn("space-y-4", isSaasMode && "opacity-40 pointer-events-none")}>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">API Private Key</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">API Private Key</label>
+                    {isSaasMode && (
+                      <span className="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">SaaS Fixed Key</span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Key className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
                     <Input
@@ -417,9 +429,6 @@ export default function AIConfigPage() {
                       onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
                     />
                   </div>
-                  {isSaasMode && (
-                    <p className="text-[10px] text-blue-600 font-bold">SaaS mode me aapka API key use nahi hota. System fixed Google Gemini Flash Lite use karega.</p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -493,7 +502,7 @@ export default function AIConfigPage() {
 
           {/* Settings Grid Below */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
-            <Card className="border-slate-200 shadow-xl rounded-[2rem] bg-white text-slate-900 overflow-hidden shrink-0">
+            <Card className={cn("border-slate-200 shadow-xl rounded-[2rem] bg-white text-slate-900 overflow-hidden shrink-0", isSaasMode && "opacity-40 pointer-events-none")}>
               <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                   <Sliders className="w-3 h-3 text-brand-gold" /> Parameters
@@ -502,7 +511,7 @@ export default function AIConfigPage() {
               <CardContent className="p-5 pt-0 space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Temperature</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temperature</label>
                     <span className="text-brand-gold font-black text-xs">{config.ai_temperature}</span>
                   </div>
                   <input
@@ -515,7 +524,7 @@ export default function AIConfigPage() {
 
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-baseline">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Model</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Model</label>
                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
                       {config.ai_model.includes('lite') || config.ai_model === 'gemini-1.5-flash' ? '$0.075 / 1M' :
                         config.ai_model.includes('2.') || config.ai_model === 'gemini-flash-latest' ? '$0.10 / 1M' :
@@ -547,13 +556,13 @@ export default function AIConfigPage() {
                     )}
                   </select>
                   {isSaasMode && (
-                    <p className="text-[9px] text-blue-600 font-bold mt-1">SaaS mode fixed model: gemini-2.0-flash-lite</p>
+                    <p className="text-[10px] text-blue-600 font-bold mt-1">SaaS mode settings block hai.</p>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            <div className="p-5 bg-brand-gold/5 rounded-[2rem] border border-brand-gold/10 space-y-3 shrink-0">
+            <div className={cn("p-5 bg-brand-gold/5 rounded-[2rem] border border-brand-gold/10 space-y-3 shrink-0", isSaasMode && "opacity-40 pointer-events-none")}>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-brand-gold" />
@@ -571,7 +580,7 @@ export default function AIConfigPage() {
               <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Controls the length of a single AI response.</p>
             </div>
 
-            <div className="p-5 bg-emerald-50 rounded-[2rem] border border-emerald-100 space-y-3 shrink-0">
+            <div className={cn("p-5 bg-emerald-50 rounded-[2rem] border border-emerald-100 space-y-3 shrink-0", isSaasMode && "opacity-40 pointer-events-none")}>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-emerald-500" />

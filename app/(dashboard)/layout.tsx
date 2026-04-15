@@ -3,6 +3,7 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { SaaSQuotaModal } from '@/components/modals/SaaSQuotaModal';
 
 export default function DashboardLayout({
   children,
@@ -20,6 +21,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      <SaaSQuotaModal />
     </ProtectedRoute>
   );
 }
