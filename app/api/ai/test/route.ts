@@ -1,9 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackUsage } from '@/lib/ai/billing';
+import { mapAIHttpError, normalizeAIError } from '@/lib/ai/errors';
+
+const OPENAI_ALLOWED_MODELS = new Set([
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4-turbo',
+]);
+
+const GOOGLE_ALLOWED_MODELS = new Set([
+  'gemini-2.5-pro',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+]);
+
+function normalizeProvider(value: any): 'openai' | 'google' {
+  return value === 'google' ? 'google' : 'openai';
+}
+
+function sanitizeMessages(messages: any[]) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
+    .slice(-12)
+    .map((m) => ({
+      role: m.role === 'ai' ? 'ai' : 'user',
+      content: String(m.content).trim(),
+    }));
+}
+
+function resolveModel(provider: 'openai' | 'google', model: any) {
+  const requested = String(model || '').trim();
+
+  if (provider === 'openai') {
+    if (OPENAI_ALLOWED_MODELS.has(requested)) return requested;
+    return 'gpt-4o';
+  }
+
+  if (GOOGLE_ALLOWED_MODELS.has(requested)) return requested;
+  return 'gemini-2.0-flash';
+}
 
 export async function POST(req: NextRequest) {
   try {
     let { uid, provider, apiKey, model, systemPrompt, temperature, maxTokens, messages, input } = await req.json();
+
+    provider = normalizeProvider(provider);
+    model = resolveModel(provider, model);
+    systemPrompt = typeof systemPrompt === 'string' ? systemPrompt.trim().slice(0, 1000) : '';
+    input = typeof input === 'string' ? input.trim() : '';
+    messages = sanitizeMessages(messages);
+
+    const safeTemperature = Number.isFinite(Number(temperature)) ? Math.max(0, Math.min(1, Number(temperature))) : 0.7;
+    const safeMaxTokens = Number.isFinite(Number(maxTokens)) ? Math.max(64, Math.min(4096, Number(maxTokens))) : 1000;
 
     if (!apiKey) {
       apiKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GOOGLE_API_KEY;
@@ -36,8 +87,8 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: model,
           messages: openAiMsgs,
-          temperature: temperature,
-          max_tokens: maxTokens,
+          temperature: safeTemperature,
+          max_tokens: safeMaxTokens,
         })
       });
 
@@ -50,14 +101,11 @@ export async function POST(req: NextRequest) {
       }
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error('Free Tier Quota khatam — wait karein / billing add karein / model badlein (OpenAI)');
-        if (res.status === 401) throw new Error('API key galat (OpenAI) — platform.openai.com se check karein');
-        if (res.status === 403) throw new Error('Permission nahi (OpenAI) — Forbidden / Access Denied');
-        if (res.status === 404) throw new Error('Model nahi mila (OpenAI) — check model name');
-        if (res.status === 500) throw new Error('OpenAI server problem — baad mein try karo');
-        throw new Error(data.error?.message || `OpenAI Error (${res.status}): ${responseBody}`);
+        throw new Error(
+          mapAIHttpError('openai', res.status, data?.error?.message || responseBody)
+        );
       }
-      
+
       responseText = data.choices?.[0]?.message?.content || 'No response content found';
 
       // Track usage
@@ -68,7 +116,7 @@ export async function POST(req: NextRequest) {
     } else if (provider === 'google') {
       const cleanModel = model.startsWith('models/') ? model : `models/${model}`;
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/${cleanModel}:generateContent?key=${apiKey}`;
-      
+
       const contents = [];
       for (const m of messages || []) {
         contents.push({ role: m.role === 'ai' ? 'model' : 'user', parts: [{ text: m.content }] });
@@ -82,23 +130,23 @@ export async function POST(req: NextRequest) {
           ...(systemPrompt ? { systemInstruction: { parts: [{ text: systemPrompt }] } } : {}),
           contents,
           generationConfig: {
-            temperature: temperature,
-            maxOutputTokens: maxTokens,
+            temperature: safeTemperature,
+            maxOutputTokens: safeMaxTokens,
           }
         })
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error('Free Tier Quota khatam — wait karein / billing add karein / model badlein (Google)');
-        if (res.status === 401) throw new Error('API key galat — kahan se nayi leni hai detail ke liye click karein: https://aistudio.google.com/app/apikey');
-        if (res.status === 403) throw new Error('Permission Nahi (403): Google AI Studio (aistudio.google.com) par Gemini API service on karein ya project settings check karein. Ye error tab aata hai jab project enable nahi hota.');
-        if (res.status === 404) throw new Error('Model nahi mila — Gemini 2.0 Flash/Lite use karo');
-        if (res.status === 400) throw new Error('Request galat — model badlo / chat saaf karo');
-        if (res.status === 500) throw new Error('Google server problem — baad mein try karo');
-        if (res.status === 503) throw new Error('Server busy — wait karo');
-        throw new Error(`Google AI API Error (${res.status})`);
+        const errText = await res.text();
+        let errJson: any = null;
+        try {
+          errJson = JSON.parse(errText);
+        } catch { }
+        const providerMessage = errJson?.error?.message || errText;
+
+        throw new Error(mapAIHttpError('google', res.status, providerMessage));
       }
-      
+
       let data;
       try {
         data = await res.json();
@@ -122,16 +170,12 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('AI Test Error Details:', error);
-    
-    let userMessage = error.message;
-    if (userMessage.includes('fetch failed') || userMessage.includes('Failed to fetch') || userMessage.includes('Network request failed')) {
-        userMessage = 'Browser block — Firefox use karo / Live Server check karo';
-    }
+    const userMessage = normalizeAIError(error);
 
     // Provide a descriptive error that the client can actually display
     // Return 200 but with an ok: false flag or error string so the browser console
     // doesn't show a red 400 error for expected quota/limit issues.
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: userMessage || 'AI Verification failed. Check your API Key and Network.',
       ok: false
     }, { status: 200 });

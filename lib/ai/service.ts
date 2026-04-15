@@ -1,5 +1,6 @@
 import { adminDb } from '../firebase/admin';
 import { estimateUsageCostUSD, trackUsage } from './billing';
+import { mapAIHttpError, normalizeAIError } from './errors';
 
 const DEFAULT_FREE_REPLIES_LIMIT = 10;
 const DEFAULT_USD_INR_RATE = 84;
@@ -43,11 +44,14 @@ function resolveSourceMode(userData: any) {
     };
   }
 
-  const saasApiKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GOOGLE_API_KEY;
+  // SaaS mode is fixed: Google Gemini Flash Lite + master env key
+  const saasProvider = 'google';
+  const saasModel = 'gemini-2.0-flash-lite';
+  const saasApiKey = process.env.GOOGLE_API_KEY;
   return {
     sourceMode: 'saas_ai' as const,
-    provider,
-    model,
+    provider: saasProvider,
+    model: saasModel,
     apiKey: saasApiKey || '',
     billingMode: 'wallet' as const,
   };
@@ -133,14 +137,12 @@ export async function generateAIResponse(ownerId: string, contactPhone: string, 
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error('Free Tier Quota khatam — wait karein / billing add karein / model badlo (OpenAI)');
-        if (res.status === 401) throw new Error('API key galat (OpenAI) — platform.openai.com se nayi lein');
-        if (res.status === 403) throw new Error('Permission nahi (OpenAI) — Restricted access / Forbidden');
-        if (res.status === 404) throw new Error('Model nahi mila (OpenAI) — model name check karein');
-        if (res.status === 500) throw new Error('OpenAI server problem — baad mein try karo');
-
-        const err = await res.text();
-        throw new Error(`OpenAI Error: ${err}`);
+        const errText = await res.text();
+        let errJson: any = null;
+        try {
+          errJson = JSON.parse(errText);
+        } catch { }
+        throw new Error(mapAIHttpError('openai', res.status, errJson?.error?.message || errText));
       }
 
       const data = await res.json();
@@ -177,14 +179,12 @@ export async function generateAIResponse(ownerId: string, contactPhone: string, 
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error('Free Tier Quota khatam — wait karein / billing add karein / model badlein');
-        if (res.status === 401) throw new Error('API key galat — kahan se nayi leni hai detail ke liye click karein: https://aistudio.google.com/app/apikey');
-        if (res.status === 403) throw new Error('Permission nahi — Google AI Studio (https://aistudio.google.com) par project verify karein');
-        if (res.status === 404) throw new Error('Model nahi mila — Gemini 2.0 Flash/Lite use karo');
-        if (res.status === 400) throw new Error('Request galat — model badlo / chat saaf karo');
-        if (res.status === 500) throw new Error('Google server problem — baad mein try karo');
-        if (res.status === 503) throw new Error('Server busy — wait karo');
-        throw new Error(`Google AI API Error (${res.status})`);
+        const errText = await res.text();
+        let errJson: any = null;
+        try {
+          errJson = JSON.parse(errText);
+        } catch { }
+        throw new Error(mapAIHttpError('google', res.status, errJson?.error?.message || errText));
       }
 
       let data;
@@ -303,22 +303,6 @@ export async function generateAIResponse(ownerId: string, contactPhone: string, 
     return aiReply;
   } catch (error: any) {
     console.error('AI Service Error:', error);
-
-    // Convert technical errors to user-friendly messages
-    let userMessage = error.message;
-
-    if (userMessage.includes('fetch failed') || userMessage.includes('Failed to fetch') || userMessage.includes('Network request failed')) {
-      userMessage = 'Browser block — Firefox use karo / Live Server check karo';
-    }
-
-    if (userMessage.includes('insufficient_quota')) {
-      userMessage = 'Free Tier Quota khatam — wait karein / billing add karein / model badlein (OpenAI)';
-    }
-
-    if (userMessage.includes('SPEND_LIMIT_EXCEEDED')) {
-      userMessage = 'Budget Exceeded: Aapka set kiya hua AI budget khatam ho gaya hai. Dashboard se limit badlein ya reset karein.';
-    }
-    // Throw user-friendly error directly to client
-    throw new Error(userMessage);
+    throw new Error(normalizeAIError(error));
   }
 }

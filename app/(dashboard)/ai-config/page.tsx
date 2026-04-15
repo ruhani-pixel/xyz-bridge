@@ -65,6 +65,11 @@ export default function AIConfigPage() {
   const [rechargeAmount, setRechargeAmount] = useState<number>(99);
   const [customRechargeAmount, setCustomRechargeAmount] = useState<string>('');
 
+  const isSaasMode = config.ai_source_mode === 'saas_ai';
+  const freeLimit = Number(config.saas_free_replies_limit || 10);
+  const freeUsed = Number(config.saas_free_replies_used || 0);
+  const freeExhausted = isSaasMode && freeUsed >= freeLimit;
+
   // Scroll to bottom of test chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,6 +111,12 @@ export default function AIConfigPage() {
     loadConfig();
     fetchStats();
   }, [user]);
+
+  useEffect(() => {
+    if (freeExhausted && Number(config.saas_wallet_balance_inr || 0) <= 0) {
+      setPayuModalOpen(true);
+    }
+  }, [freeExhausted, config.saas_wallet_balance_inr]);
 
   async function fetchStats() {
     if (!user) return;
@@ -250,6 +261,27 @@ export default function AIConfigPage() {
         </div>
       </div>
 
+      <div className={cn(
+        'mb-6 w-full rounded-2xl border px-5 py-3 flex flex-wrap items-center justify-between gap-3',
+        isSaasMode ? 'bg-blue-50 border-blue-100' : 'bg-emerald-50 border-emerald-100'
+      )}>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-800">
+            {isSaasMode ? 'SaaS AI Active (Fixed Engine)' : 'Own API Active (User Controlled)'}
+          </p>
+          <p className="text-xs font-medium text-slate-600 mt-0.5">
+            {isSaasMode
+              ? `Provider: Google • Model: gemini-2.0-flash-lite • Free: ${freeUsed}/${freeLimit} • Wallet: ₹${Number(config.saas_wallet_balance_inr || 0).toFixed(2)}`
+              : `Provider: ${config.ai_provider} • Model: ${config.ai_model} • Aap apna API key/model control kar sakte hain.`}
+          </p>
+        </div>
+        {freeExhausted && Number(config.saas_wallet_balance_inr || 0) <= 0 && (
+          <Button type="button" variant="brand" onClick={() => setPayuModalOpen(true)} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest">
+            Free khatam — Recharge karein
+          </Button>
+        )}
+      </div>
+
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-8">
 
         {/* Left Column: ALL Settings */}
@@ -343,6 +375,7 @@ export default function AIConfigPage() {
                 ].map((p) => (
                   <button
                     key={p.id}
+                    disabled={isSaasMode}
                     onClick={() => setConfig({
                       ...config,
                       ai_provider: p.id as any,
@@ -352,7 +385,8 @@ export default function AIConfigPage() {
                       "p-4 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 group",
                       config.ai_provider === p.id
                         ? "border-brand-gold bg-brand-gold/5 shadow-lg"
-                        : "border-slate-50 hover:border-slate-200 bg-slate-50/50"
+                        : "border-slate-50 hover:border-slate-200 bg-slate-50/50",
+                      isSaasMode && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     <div className={cn(
@@ -376,12 +410,16 @@ export default function AIConfigPage() {
                     <Key className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
                     <Input
                       type="password"
-                      placeholder="sk-••••••••••••••••••••••••"
+                      placeholder={isSaasMode ? 'SaaS mode me master key auto-use hoti hai' : 'sk-••••••••••••••••••••••••'}
                       className="h-14 pl-12 bg-slate-50 border-slate-100 rounded-2xl font-mono text-xs"
                       value={config.ai_api_key}
+                      disabled={isSaasMode}
                       onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
                     />
                   </div>
+                  {isSaasMode && (
+                    <p className="text-[10px] text-blue-600 font-bold">SaaS mode me aapka API key use nahi hota. System fixed Google Gemini Flash Lite use karega.</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -488,6 +526,7 @@ export default function AIConfigPage() {
                     </span>
                   </div>
                   <select
+                    disabled={isSaasMode}
                     className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-xl h-10 px-4 text-xs font-black uppercase tracking-widest focus:ring-1 focus:ring-brand-gold transition-all cursor-pointer"
                     value={config.ai_model}
                     onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
@@ -507,6 +546,9 @@ export default function AIConfigPage() {
                       </>
                     )}
                   </select>
+                  {isSaasMode && (
+                    <p className="text-[9px] text-blue-600 font-bold mt-1">SaaS mode fixed model: gemini-2.0-flash-lite</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
