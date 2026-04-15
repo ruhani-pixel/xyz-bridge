@@ -107,6 +107,17 @@ export default function TemplatesPage() {
 
   const previewTemplate = templates.find(t => t.id === previewId);
 
+  const downloadHardcodedTemplate = () => {
+    const link = document.createElement('a');
+    link.href = '/Campaign_Format.xlsx';
+    link.download = 'SolidModels_Format.xlsx';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Excel File Downloaded!');
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -214,12 +225,12 @@ export default function TemplatesPage() {
               </div>
             </div>
           </div>
-          <a
-            href="/api/gmail/download-template"
+          <Button
+            onClick={downloadHardcodedTemplate}
             className="h-11 px-6 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 flex-shrink-0"
           >
             <Download className="w-4 h-4" /> Download Excel Format
-          </a>
+          </Button>
         </div>
       </div>
 
