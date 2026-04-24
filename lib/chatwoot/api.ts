@@ -94,4 +94,20 @@ export const sendToChatwoot = {
     });
     return await res.json();
   },
+
+  async getProfile(baseUrl: string, token: string) {
+    const res = await fetch(`${baseUrl}/api/v1/profile`, {
+      headers: { 'Content-Type': 'application/json', api_access_token: token },
+    });
+    if (!res.ok) throw new Error('Invalid Token or Base URL');
+    return await res.json();
+  },
+
+  async getInboxes(baseUrl: string, token: string, accountId: string | number) {
+    const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/inboxes`, {
+      headers: { 'Content-Type': 'application/json', api_access_token: token },
+    });
+    if (!res.ok) throw new Error('Failed to fetch inboxes');
+    return await res.json();
+  },
 };

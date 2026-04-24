@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'api' | 'gmail' | 'plan' | 'bridge'>('api');
   const [showSecurityGuide, setShowSecurityGuide] = useState(false);
   const [showGmailGuide, setShowGmailGuide] = useState(false);
+  const [showFlowGuide, setShowFlowGuide] = useState(false);
   const [securityGuideType, setSecurityGuideType] = useState<'ip_blocked' | 'auth_failed'>('ip_blocked');
 
   // Config State
@@ -35,8 +36,12 @@ export default function SettingsPage() {
     chatwoot_inbox_id: '',
     gmail_app_password: '',
     accountType: 'platform' as 'bridge' | 'platform',
+    bridgeEnabled: false,
+    platformEnabled: true,
   });
   const [saving, setSaving] = useState(false);
+  const [fetchingChatwoot, setFetchingChatwoot] = useState(false);
+  const [inboxes, setInboxes] = useState<any[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
@@ -82,6 +87,43 @@ export default function SettingsPage() {
     }
   };
 
+  const handleFetchChatwoot = async () => {
+    if (!config.chatwoot_base_url || !config.chatwoot_api_token) {
+      toast.error('Enter Base URL and API Token first');
+      return;
+    }
+    setFetchingChatwoot(true);
+    try {
+      const res = await fetch('/api/user/fetch-chatwoot-details', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          base_url: config.chatwoot_base_url,
+          api_token: config.chatwoot_api_token
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConfig(prev => ({ 
+          ...prev, 
+          chatwoot_account_id: data.accountId.toString(),
+          chatwoot_inbox_id: data.inboxes[0]?.id.toString() || ''
+        }));
+        setInboxes(data.inboxes);
+        toast.success('Details fetched successfully!');
+      } else {
+        toast.error(data.error || 'Failed to fetch details');
+      }
+    } catch {
+      toast.error('Connection error');
+    } finally {
+      setFetchingChatwoot(false);
+    }
+  };
+
   const copyToClipboard = (text: string, type: 'msg91' | 'chatwoot') => {
     navigator.clipboard.writeText(text);
     toast.success('Copied!');
@@ -112,7 +154,6 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16 animate-in fade-in duration-700">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Settings</h1>
@@ -124,7 +165,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl w-fit">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
@@ -143,7 +183,6 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* TAB: API & Webhooks */}
       {activeTab === 'api' && (
         <div className="space-y-6 animate-in fade-in duration-300">
           <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
@@ -154,12 +193,19 @@ export default function SettingsPage() {
                   <CardTitle className="text-sm font-black uppercase tracking-tight">MSG91 & Chatwoot Setup</CardTitle>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Connect your WhatsApp provider</p>
                 </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowFlowGuide(true)}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md shadow-slate-200"
+                >
+                  <Globe className="w-3 h-3" />
+                  How it works?
+                </button>
               </div>
             </CardHeader>
             <CardContent className="p-5">
               <form onSubmit={handleSaveConfig} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* MSG91 */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                       <span className="w-1.5 h-5 bg-brand-gold rounded-full" />
@@ -223,7 +269,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Chatwoot (Bridge) */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                       <span className="w-1.5 h-5 bg-blue-500 rounded-full" />
@@ -237,10 +282,21 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">API Token</label>
+                      <div className="flex items-center justify-between mb-0.5 px-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">API Token</label>
+                        <button
+                          type="button"
+                          onClick={handleFetchChatwoot}
+                          disabled={fetchingChatwoot}
+                          className="text-[8.5px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest flex items-center gap-1 transition-colors disabled:opacity-50"
+                        >
+                          <Zap className="w-2.5 h-2.5" /> {fetchingChatwoot ? 'Fetching...' : 'Fetch IDs'}
+                        </button>
+                      </div>
                       <input type="password" value={config.chatwoot_api_token}
                         onChange={(e) => setConfig({...config, chatwoot_api_token: e.target.value})}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
+                        placeholder="Key"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all font-mono"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -248,15 +304,29 @@ export default function SettingsPage() {
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Account ID</label>
                         <input type="text" value={config.chatwoot_account_id}
                           onChange={(e) => setConfig({...config, chatwoot_account_id: e.target.value})}
+                          placeholder="Auto-fetched"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Inbox ID</label>
-                        <input type="text" value={config.chatwoot_inbox_id}
-                          onChange={(e) => setConfig({...config, chatwoot_inbox_id: e.target.value})}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
-                        />
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Inbox</label>
+                        {inboxes.length > 0 ? (
+                          <select 
+                            value={config.chatwoot_inbox_id}
+                            onChange={(e) => setConfig({...config, chatwoot_inbox_id: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
+                          >
+                            {inboxes.map(ib => (
+                              <option key={ib.id} value={ib.id}>{ib.name} ({ib.channel_type})</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input type="text" value={config.chatwoot_inbox_id}
+                            onChange={(e) => setConfig({...config, chatwoot_inbox_id: e.target.value})}
+                            placeholder="Inbox ID"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -273,7 +343,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Webhook URLs */}
           <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
             <CardHeader className="border-b border-slate-100 p-5">
               <div className="flex items-center gap-3">
@@ -290,6 +359,7 @@ export default function SettingsPage() {
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     MSG91 Inbound <span className="text-emerald-500">● Input</span>
                   </label>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight mb-1">Paste in MSG91 Dashboard → WhatsApp → Webhook</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-mono text-[11px] text-slate-600 truncate">{originUrl}/api/msg91-webhook</div>
                     <button onClick={() => copyToClipboard(`${originUrl}/api/msg91-webhook`, 'msg91')}
@@ -302,6 +372,7 @@ export default function SettingsPage() {
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
                     Chatwoot Outbound <span className="text-blue-500">● Output</span>
                   </label>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight mb-1">Paste in Chatwoot Dashboard → Inbox Settings → Webhook</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-mono text-[11px] text-slate-600 truncate">{originUrl}/api/chatwoot-webhook</div>
                     <button onClick={() => copyToClipboard(`${originUrl}/api/chatwoot-webhook`, 'chatwoot')}
@@ -316,11 +387,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-
-      {/* TAB: Subscription */}
       {activeTab === 'plan' && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          {/* Current Plan */}
           <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -341,7 +409,6 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              {/* Usage bar */}
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
                   <span>Message Usage</span>
@@ -357,7 +424,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Feature list */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {planDetails.features.map((feature) => (
               <div key={feature} className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
@@ -369,69 +435,204 @@ export default function SettingsPage() {
         </div>
       )}
 
-       {/* TAB: Bridge Mode */}
-       {activeTab === 'bridge' && (
-         <div className="space-y-6 animate-in fade-in duration-300">
-           <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-             <CardContent className="p-6">
-               <div className="flex items-start gap-4">
-                 <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                   <GitBranch className="w-6 h-6 text-amber-500" />
-                 </div>
-                 <div className="flex-1">
-                   <h2 className="text-md font-black text-slate-900 uppercase tracking-tight mb-1">Bridge Mode</h2>
-                   <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
-                     When Bridge Mode is ON, messages are forwarded to Chatwoot instead of AI inbox.
-                   </p>
-                   
-                   <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3">
-                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                     <div className="text-[11px] text-amber-800">
-                       <strong>Note:</strong> Bridge mode and AI inbox cannot run simultaneously.
-                     </div>
-                   </div>
+      {activeTab === 'bridge' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <GitBranch className="w-6 h-6 text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-md font-black text-slate-900 uppercase tracking-tight mb-1">Bridge Mode</h2>
+                  <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
+                    When Bridge Mode is ON, messages are forwarded to Chatwoot instead of AI inbox.
+                  </p>
+                  
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3 mb-8">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-amber-800">
+                      <strong>Note:</strong> Bridge mode and AI inbox can now run simultaneously if both are enabled.
+                    </div>
+                  </div>
 
-                   <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
-                     <div>
-                       <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Enable Bridge Mode</h3>
-                       <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                         Forward all WhatsApp messages to Chatwoot
-                       </p>
-                     </div>
-                     <button
-                       onClick={() => setConfig({ ...config, accountType: config.accountType === 'bridge' ? 'platform' : 'bridge' })}
-                       className={cn(
-                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                         config.accountType === 'bridge' ? "bg-brand-gold" : "bg-slate-200"
-                       )}
-                     >
-                       <span
-                         className={cn(
-                           "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                           config.accountType === 'bridge' ? "translate-x-6" : "translate-x-1"
-                         )}
-                       />
-                     </button>
-                   </div>
-                 </div>
-               </div>
-             </CardContent>
-           </Card>
-         </div>
-       )}
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Bridge Mode (Chatwoot)</h3>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                          Forward all WhatsApp messages to Chatwoot
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Basic MSG91 check for both
+                          if (!config.msg91_authkey || !config.msg91_integrated_number) {
+                            toast.error('Please fill MSG91 details first!');
+                            return;
+                          }
 
-      {/* MSG91 Security Guide Popup */}
+                          if (!config.bridgeEnabled) {
+                            const isConfigured = config.chatwoot_api_token && 
+                                               config.chatwoot_account_id && 
+                                               config.chatwoot_inbox_id && 
+                                               config.chatwoot_base_url;
+                            
+                            if (!isConfigured) {
+                              toast.error('Please fill all Chatwoot details first!');
+                              return;
+                            }
+                          }
+                          setConfig({ ...config, bridgeEnabled: !config.bridgeEnabled });
+                        }}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                          config.bridgeEnabled ? "bg-blue-500" : "bg-slate-200"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            config.bridgeEnabled ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Platform Mode (AI Inbox)</h3>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                          Use internal chat workspace with AI replies
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!config.platformEnabled) {
+                            if (!config.msg91_authkey || !config.msg91_integrated_number) {
+                              toast.error('Please fill MSG91 details first!');
+                              return;
+                            }
+                          }
+                          setConfig({ ...config, platformEnabled: !config.platformEnabled });
+                        }}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                          config.platformEnabled ? "bg-emerald-500" : "bg-slate-200"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            config.platformEnabled ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {!config.bridgeEnabled && !config.platformEnabled && (
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-pulse">
+                        <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-red-800 font-bold uppercase tracking-tight">
+                          Warning: Both modes are OFF. No messages will be processed.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <MSG91SecurityGuide 
         isOpen={showSecurityGuide} 
         onClose={() => setShowSecurityGuide(false)}
         errorType={securityGuideType}
       />
 
-      {/* Gmail Setup Guide Popup */}
       <GmailSecurityGuide 
         isOpen={showGmailGuide} 
         onClose={() => setShowGmailGuide(false)}
       />
+
+      {/* Flow Guide Slide-in */}
+      {showFlowGuide && (
+        <div className="fixed inset-0 z-[100] flex justify-end animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowFlowGuide(false)} />
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-in slide-in-from-right duration-500 p-8 overflow-y-auto">
+            <button onClick={() => setShowFlowGuide(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <SettingsIcon className="w-5 h-5 text-slate-400 rotate-45" />
+            </button>
+
+            <div className="mt-8 space-y-8">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Integration Flow</h2>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Copy-Paste Guide</p>
+              </div>
+
+              <div className="space-y-12 relative before:absolute before:left-[19px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-100">
+                {/* Step 1 */}
+                <div className="relative flex gap-6">
+                  <div className="w-10 h-10 rounded-full bg-brand-gold text-white flex items-center justify-center font-black text-sm shadow-lg shadow-brand-gold/20 z-10">1</div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">MSG91 Dashboard</h4>
+                    <p className="text-sm font-bold text-slate-900 mt-1">Copy <span className="text-brand-gold">Auth Key</span></p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-500 italic">
+                      Paste this in SaaS Settings → MSG91 Section
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="relative flex gap-6">
+                  <div className="w-10 h-10 rounded-full bg-brand-gold text-white flex items-center justify-center font-black text-sm shadow-lg shadow-brand-gold/20 z-10">2</div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">SaaS Dashboard</h4>
+                    <p className="text-sm font-bold text-slate-900 mt-1">Copy <span className="text-emerald-500">Inbound URL</span></p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-500 italic">
+                      Paste this in MSG91 Dashboard → WhatsApp → Webhook
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="relative flex gap-6">
+                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-sm shadow-lg shadow-blue-500/20 z-10">3</div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Chatwoot Dashboard</h4>
+                    <p className="text-sm font-bold text-slate-900 mt-1">Copy <span className="text-blue-500">API Token</span></p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-500 italic">
+                      Paste this in SaaS Settings → Chatwoot Section
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div className="relative flex gap-6">
+                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-sm shadow-lg shadow-blue-500/20 z-10">4</div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">SaaS Dashboard</h4>
+                    <p className="text-sm font-bold text-slate-900 mt-1">Copy <span className="text-blue-500">Outbound URL</span></p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-500 italic">
+                      Paste this in Chatwoot Dashboard → Inbox Settings → Webhook
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <p className="text-[10px] text-blue-700 font-bold leading-relaxed">
+                  <strong>TIP:</strong> Use <u>ngrok</u> or a public domain if you are testing on localhost, otherwise webhooks won't reach your server!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

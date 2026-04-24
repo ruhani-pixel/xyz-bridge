@@ -29,6 +29,8 @@ export interface AdminUser {
   industry?: string;
   teamSize?: string;
   accountType?: 'bridge' | 'platform';
+  bridgeEnabled?: boolean;
+  platformEnabled?: boolean;
 
   // MSG91 Config
   msg91_authkey?: string;

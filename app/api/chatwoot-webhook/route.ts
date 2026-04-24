@@ -40,6 +40,11 @@ export async function POST(req: NextRequest) {
     }
     
     const userData = userDoc.data()!;
+    if (!userData.bridgeEnabled) {
+      console.log('Bridge Mode is OFF for user:', ownerId);
+      return NextResponse.json({ ok: true });
+    }
+
     const config = {
       msg91_authkey: decrypt(userData.msg91_authkey),
       msg91_integrated_number: userData.msg91_integrated_number

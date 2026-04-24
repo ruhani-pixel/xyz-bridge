@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
       gmail_email: data.gmail_email || '',
       gmail_app_password: data.gmail_app_password || '',
       accountType: data.accountType || 'platform',
+      bridgeEnabled: data.bridgeEnabled ?? false,
+      platformEnabled: data.platformEnabled ?? true,
     };
 
     return NextResponse.json({ config });
@@ -80,6 +82,8 @@ export async function POST(req: NextRequest) {
       gmail_email,
       gmail_app_password,
       accountType,
+      bridgeEnabled,
+      platformEnabled,
     } = body;
 
     const updateData: any = {
@@ -90,6 +94,8 @@ export async function POST(req: NextRequest) {
       chatwoot_account_id: chatwoot_account_id || '',
       chatwoot_inbox_id: chatwoot_inbox_id || '',
       accountType: accountType || 'platform',
+      bridgeEnabled: bridgeEnabled ?? false,
+      platformEnabled: platformEnabled ?? true,
       updatedAt: new Date(),
     };
     // Only update Gmail fields if they were explicitly provided
