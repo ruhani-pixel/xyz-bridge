@@ -41,6 +41,8 @@ export default function SettingsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [fetchingChatwoot, setFetchingChatwoot] = useState(false);
+  const [chatwootConnected, setChatwootConnected] = useState(false);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [inboxes, setInboxes] = useState<any[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -87,7 +89,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleFetchChatwoot = async () => {
+  const handleFetchChatwoot = async (accountIdOverride?: string) => {
     if (!config.chatwoot_base_url || !config.chatwoot_api_token) {
       toast.error('Enter Base URL and API Token first');
       return;
@@ -102,23 +104,28 @@ export default function SettingsPage() {
         },
         body: JSON.stringify({
           base_url: config.chatwoot_base_url,
-          api_token: config.chatwoot_api_token
+          api_token: config.chatwoot_api_token,
+          account_id: accountIdOverride || config.chatwoot_account_id || undefined
         })
       });
       const data = await res.json();
       if (data.success) {
+        setAccounts(data.accounts || []);
+        setInboxes(data.inboxes || []);
+        setChatwootConnected(true);
         setConfig(prev => ({ 
           ...prev, 
-          chatwoot_account_id: data.accountId.toString(),
-          chatwoot_inbox_id: data.inboxes[0]?.id.toString() || ''
+          chatwoot_account_id: data.selectedAccountId?.toString() || prev.chatwoot_account_id,
+          chatwoot_inbox_id: data.inboxes[0]?.id?.toString() || prev.chatwoot_inbox_id
         }));
-        setInboxes(data.inboxes);
-        toast.success('Details fetched successfully!');
+        toast.success(`Connected! Found ${data.accounts.length} account(s) & ${data.inboxes.length} inbox(es)`);
       } else {
-        toast.error(data.error || 'Failed to fetch details');
+        toast.error(data.error || 'Failed to connect');
+        setChatwootConnected(false);
       }
     } catch {
-      toast.error('Connection error');
+      toast.error('Connection error — check Base URL');
+      setChatwootConnected(false);
     } finally {
       setFetchingChatwoot(false);
     }
@@ -269,66 +276,111 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* CHATWOOT SECTION - Redesigned */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                       <span className="w-1.5 h-5 bg-blue-500 rounded-full" />
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Chatwoot <span className="text-slate-400">(Optional)</span></h3>
+                      {chatwootConnected && (
+                        <span className="ml-auto flex items-center gap-1 text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                          <CheckCircle2 className="w-3 h-3" /> Connected
+                        </span>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Base URL</label>
-                      <input type="text" value={config.chatwoot_base_url}
-                        onChange={(e) => setConfig({...config, chatwoot_base_url: e.target.value})}
+
+                    {/* Step 1: Base URL */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 px-1">
+                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[8px] font-black flex items-center justify-center">1</span>
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your Chatwoot URL</label>
+                      </div>
+                      <input
+                        type="text"
+                        value={config.chatwoot_base_url}
+                        onChange={(e) => { setConfig({...config, chatwoot_base_url: e.target.value}); setChatwootConnected(false); }}
+                        placeholder="https://app.chatwoot.com"
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
                       />
+                      <p className="text-[9px] text-slate-400 px-1">Just the domain — no /app/accounts/... path</p>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between mb-0.5 px-1">
+
+                    {/* Step 2: API Token + Connect Button */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 px-1">
+                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[8px] font-black flex items-center justify-center">2</span>
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">API Token</label>
                         <button
                           type="button"
-                          onClick={handleFetchChatwoot}
-                          disabled={fetchingChatwoot}
-                          className="text-[8.5px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest flex items-center gap-1 transition-colors disabled:opacity-50"
-                        >
-                          <Zap className="w-2.5 h-2.5" /> {fetchingChatwoot ? 'Fetching...' : 'Fetch IDs'}
-                        </button>
+                          onClick={() => setShowFlowGuide(true)}
+                          className="ml-auto text-[8px] text-blue-400 hover:text-blue-600 font-bold uppercase tracking-widest transition-colors"
+                        >Where to find?</button>
                       </div>
-                      <input type="password" value={config.chatwoot_api_token}
-                        onChange={(e) => setConfig({...config, chatwoot_api_token: e.target.value})}
-                        placeholder="Key"
+                      <input
+                        type="password"
+                        value={config.chatwoot_api_token}
+                        onChange={(e) => { setConfig({...config, chatwoot_api_token: e.target.value}); setChatwootConnected(false); }}
+                        placeholder="Personal Access Token"
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all font-mono"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Account ID</label>
-                        <input type="text" value={config.chatwoot_account_id}
-                          onChange={(e) => setConfig({...config, chatwoot_account_id: e.target.value})}
-                          placeholder="Auto-fetched"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
-                        />
+
+                    {/* Connect Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleFetchChatwoot()}
+                      disabled={fetchingChatwoot || !config.chatwoot_base_url || !config.chatwoot_api_token}
+                      className="w-full h-9 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    >
+                      {fetchingChatwoot ? (
+                        <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Connecting...</>
+                      ) : chatwootConnected ? (
+                        <><CheckCircle2 className="w-3.5 h-3.5" /> Re-Connect Chatwoot</>
+                      ) : (
+                        <><Zap className="w-3.5 h-3.5" /> Connect Chatwoot & Fetch Inboxes</>
+                      )}
+                    </button>
+
+                    {/* Step 3: Account Dropdown (auto-populated) */}
+                    {accounts.length > 0 && (
+                      <div className="space-y-1.5 animate-in fade-in duration-300">
+                        <div className="flex items-center gap-1.5 px-1">
+                          <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 text-[8px] font-black flex items-center justify-center">✓</span>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select Account</label>
+                        </div>
+                        <select
+                          value={config.chatwoot_account_id}
+                          onChange={(e) => {
+                            setConfig({...config, chatwoot_account_id: e.target.value});
+                            handleFetchChatwoot(e.target.value);
+                          }}
+                          className="w-full bg-slate-50 border border-emerald-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-emerald-400/60 transition-all"
+                        >
+                          {accounts.map(ac => (
+                            <option key={ac.id} value={ac.id}>{ac.name} (ID: {ac.id})</option>
+                          ))}
+                        </select>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Inbox</label>
-                        {inboxes.length > 0 ? (
-                          <select 
-                            value={config.chatwoot_inbox_id}
-                            onChange={(e) => setConfig({...config, chatwoot_inbox_id: e.target.value})}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
-                          >
-                            {inboxes.map(ib => (
-                              <option key={ib.id} value={ib.id}>{ib.name} ({ib.channel_type})</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input type="text" value={config.chatwoot_inbox_id}
-                            onChange={(e) => setConfig({...config, chatwoot_inbox_id: e.target.value})}
-                            placeholder="Inbox ID"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-blue-400/40 transition-all"
-                          />
-                        )}
+                    )}
+
+                    {/* Step 4: Inbox Dropdown (auto-populated) */}
+                    {inboxes.length > 0 && (
+                      <div className="space-y-1.5 animate-in fade-in duration-300">
+                        <div className="flex items-center gap-1.5 px-1">
+                          <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 text-[8px] font-black flex items-center justify-center">✓</span>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select Inbox</label>
+                        </div>
+                        <select
+                          value={config.chatwoot_inbox_id}
+                          onChange={(e) => setConfig({...config, chatwoot_inbox_id: e.target.value})}
+                          className="w-full bg-slate-50 border border-emerald-200 rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-emerald-400/60 transition-all"
+                        >
+                          {inboxes.map(ib => (
+                            <option key={ib.id} value={ib.id}>{ib.name}</option>
+                          ))}
+                        </select>
+                        <p className="text-[9px] text-slate-400 px-1">{inboxes.length} inbox(es) found — pick the WhatsApp one</p>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
