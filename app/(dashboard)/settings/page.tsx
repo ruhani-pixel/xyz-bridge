@@ -34,6 +34,7 @@ export default function SettingsPage() {
     chatwoot_account_id: '',
     chatwoot_inbox_id: '',
     gmail_app_password: '',
+    accountType: 'platform' as 'bridge' | 'platform',
   });
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -388,6 +389,29 @@ export default function SettingsPage() {
                      <div className="text-[11px] text-amber-800">
                        <strong>Note:</strong> Bridge mode and AI inbox cannot run simultaneously.
                      </div>
+                   </div>
+
+                   <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+                     <div>
+                       <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Enable Bridge Mode</h3>
+                       <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                         Forward all WhatsApp messages to Chatwoot
+                       </p>
+                     </div>
+                     <button
+                       onClick={() => setConfig({ ...config, accountType: config.accountType === 'bridge' ? 'platform' : 'bridge' })}
+                       className={cn(
+                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                         config.accountType === 'bridge' ? "bg-brand-gold" : "bg-slate-200"
+                       )}
+                     >
+                       <span
+                         className={cn(
+                           "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                           config.accountType === 'bridge' ? "translate-x-6" : "translate-x-1"
+                         )}
+                       />
+                     </button>
                    </div>
                  </div>
                </div>

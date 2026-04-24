@@ -5,6 +5,7 @@ import { generateAIResponse } from '@/lib/ai/service';
 import { incrementMessageStats } from '@/lib/firebase/stats-admin';
 import { decrypt } from '@/lib/security';
 import { sendMSG91Reply } from '@/lib/msg91/api';
+import { sendToChatwoot } from '@/lib/chatwoot/api';
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -160,8 +161,60 @@ export async function POST(req: NextRequest) {
       await incrementMessageStats(ownerId, 'inbound', 'whatsapp');
     });
 
+    // --- NEW: Bridge Mode Logic (Forward to Chatwoot) ---
+    if (userData.accountType === 'bridge') {
+      try {
+        const chatwootConfig = {
+          chatwoot_base_url: userData.chatwoot_base_url,
+          chatwoot_api_token: decrypt(userData.chatwoot_api_token),
+          chatwoot_account_id: userData.chatwoot_account_id,
+          chatwoot_inbox_id: userData.chatwoot_inbox_id
+        };
+
+        let chatwootConversationId = contactData?.chatwootConversationId;
+        
+        if (!chatwootConversationId) {
+          const cwData = await sendToChatwoot.createContactAndConversation(
+            customerNumber, 
+            contactName, 
+            chatwootConfig
+          );
+          chatwootConversationId = cwData.conversationId;
+          
+          // Save IDs to Firestore contact for future use
+          await finalContactRef.update({
+            chatwootConversationId: cwData.conversationId,
+            chatwootContactId: cwData.contactId,
+            chatwootSourceId: cwData.sourceId,
+            bridgeEnabled: true
+          });
+        }
+
+        await sendToChatwoot.sendMessage(
+          chatwootConversationId,
+          messageText,
+          'incoming',
+          chatwootConfig
+        );
+
+        // Update the message record with Chatwoot Conversation ID
+        const msgIdQuery = await adminDb.collection('chat_messages')
+          .where('ownerId', '==', ownerId)
+          .where('msg91MessageId', '==', messageId)
+          .limit(1)
+          .get();
+        
+        if (!msgIdQuery.empty) {
+          await msgIdQuery.docs[0].ref.update({ chatwootConversationId });
+        }
+
+      } catch (cwError) {
+        console.error('Chatwoot forwarding failed:', cwError);
+      }
+    }
+
     // 7. AI Auto-Reply (Conditional)
-    if (contactData?.aiEnabled !== false && !contactData?.bridgeEnabled) {
+    if (userData.accountType === 'platform' && contactData?.aiEnabled !== false) {
       try {
         // --- NEW: Signal AI is typing ---
         await finalContactRef.update({ 

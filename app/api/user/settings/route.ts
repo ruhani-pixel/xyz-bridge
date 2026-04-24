@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       chatwoot_inbox_id: data.chatwoot_inbox_id || '',
       gmail_email: data.gmail_email || '',
       gmail_app_password: data.gmail_app_password || '',
+      accountType: data.accountType || 'platform',
     };
 
     return NextResponse.json({ config });
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
       chatwoot_inbox_id,
       gmail_email,
       gmail_app_password,
+      accountType,
     } = body;
 
     const updateData: any = {
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
       chatwoot_api_token: chatwoot_api_token || '',
       chatwoot_account_id: chatwoot_account_id || '',
       chatwoot_inbox_id: chatwoot_inbox_id || '',
+      accountType: accountType || 'platform',
       updatedAt: new Date(),
     };
     // Only update Gmail fields if they were explicitly provided

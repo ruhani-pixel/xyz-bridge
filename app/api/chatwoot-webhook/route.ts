@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
     const userData = userDoc.data()!;
     const config = {
       msg91_authkey: decrypt(userData.msg91_authkey),
-      integrated_number: userData.msg91_integrated_number
+      msg91_integrated_number: userData.msg91_integrated_number
     };
 
     let responseStatus = 'sent';
 
     try {
       // Send reply via MSG91
-      await sendMSG91Reply(contact.phoneNumber, content, { authkey: config.msg91_authkey });
+      await sendMSG91Reply(contact.phoneNumber, content, config);
       
       // Update individual user stats
       const statsRef = adminDb.collection('users').doc(ownerId).collection('stats').doc('realtime');
