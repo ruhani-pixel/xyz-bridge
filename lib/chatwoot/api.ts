@@ -1,3 +1,15 @@
+import { adminDb } from '@/lib/firebase/admin';
+import { FieldValue } from 'firebase-admin/firestore';
+
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Invalid JSON response from Chatwoot (Status: ${res.status}). Body: ${text.substring(0, 100)}...`);
+  }
+}
+
 export const sendToChatwoot = {
   async searchContact(phoneNumber: string, config: any) {
     const { chatwoot_base_url, chatwoot_api_token, chatwoot_account_id } = config;
@@ -10,8 +22,8 @@ export const sendToChatwoot = {
     });
     
     if (!res.ok) return null;
-    const data = await res.json();
-    return data.payload[0] || null;
+    const data = await safeJson(res);
+    return (data.payload && data.payload[0]) || data[0] || null;
   },
 
   async createContactAndConversation(phoneNumber: string, name: string, config: any) {
@@ -32,7 +44,7 @@ export const sendToChatwoot = {
           phone_number: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
         }),
       });
-      const contactData = await contactRes.json();
+      const contactData = await safeJson(contactRes);
       if (!contactRes.ok) throw new Error(contactData.message || 'Failed to create contact in Chatwoot');
       contact = contactData.payload?.contact || contactData;
     }
@@ -44,8 +56,9 @@ export const sendToChatwoot = {
     const contactInboxesRes = await fetch(`${chatwoot_base_url}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/contact_inboxes`, {
       headers,
     });
-    const existingInboxes = await contactInboxesRes.json();
-    let sourceId = existingInboxes.find((ib: any) => ib.inbox.id === parseInt(chatwoot_inbox_id))?.source_id;
+    const existingInboxes = await safeJson(contactInboxesRes);
+    const inboxesArr = existingInboxes.payload || existingInboxes || [];
+    let sourceId = inboxesArr.find((ib: any) => ib.inbox?.id === parseInt(chatwoot_inbox_id))?.source_id;
 
     if (!sourceId) {
       const inboxRes = await fetch(`${chatwoot_base_url}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/contact_inboxes`, {
@@ -53,7 +66,7 @@ export const sendToChatwoot = {
         headers,
         body: JSON.stringify({ inbox_id: chatwoot_inbox_id }),
       });
-      const inboxData = await inboxRes.json();
+      const inboxData = await safeJson(inboxRes);
       if (!inboxRes.ok) throw new Error(inboxData.message || 'Failed to link contact to inbox in Chatwoot');
       sourceId = inboxData.source_id;
     }
@@ -64,8 +77,9 @@ export const sendToChatwoot = {
     const convsRes = await fetch(`${chatwoot_base_url}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/conversations`, {
       headers,
     });
-    const existingConvs = await convsRes.json();
-    let conversationId = existingConvs.payload.find((c: any) => c.inbox_id === parseInt(chatwoot_inbox_id) && c.status !== 'resolved')?.id;
+    const existingConvs = await safeJson(convsRes);
+    const convsArr = existingConvs.payload || existingConvs || [];
+    let conversationId = convsArr.find((c: any) => c.inbox_id === parseInt(chatwoot_inbox_id) && c.status !== 'resolved')?.id;
 
     if (!conversationId) {
       const convRes = await fetch(`${chatwoot_base_url}/api/v1/accounts/${chatwoot_account_id}/conversations`, {
@@ -76,7 +90,7 @@ export const sendToChatwoot = {
           inbox_id: chatwoot_inbox_id,
         }),
       });
-      const convData = await convRes.json();
+      const convData = await safeJson(convRes);
       if (!convRes.ok) throw new Error(convData.message || 'Failed to create conversation in Chatwoot');
       conversationId = convData.id;
     }
@@ -100,7 +114,7 @@ export const sendToChatwoot = {
         content_type: 'text',
       }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.message || 'Failed to send message to Chatwoot');
     return data;
   },
@@ -110,7 +124,7 @@ export const sendToChatwoot = {
       headers: { 'Content-Type': 'application/json', api_access_token: token },
     });
     if (!res.ok) throw new Error('Invalid Token or Base URL');
-    return await res.json();
+    return await safeJson(res);
   },
 
   async getInboxes(baseUrl: string, token: string, accountId: string | number) {
@@ -118,7 +132,7 @@ export const sendToChatwoot = {
       headers: { 'Content-Type': 'application/json', api_access_token: token },
     });
     if (!res.ok) throw new Error('Failed to fetch inboxes');
-    return await res.json();
+    return await safeJson(res);
   },
 
   async testConnection(config: any) {

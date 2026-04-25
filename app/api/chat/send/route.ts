@@ -4,6 +4,7 @@ import { sendMSG91Reply } from '@/lib/msg91/api';
 import { decrypt } from '@/lib/security';
 import { FieldValue } from 'firebase-admin/firestore';
 import { incrementMessageStats } from '@/lib/firebase/stats-admin';
+import { sendToChatwoot } from '@/lib/chatwoot/api';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,12 +32,52 @@ export async function POST(req: NextRequest) {
     }
     const userData = userDoc.data();
 
-    // 3. Send message (Skip gateway if it's a website widget contact)
+    // 3. Send message (Skip gateway if it's a website widget contact or Test number)
     const isWidget = phoneNumber.startsWith('widget_');
+    const isTestNumber = phoneNumber === '910000000000' || phoneNumber === '+910000000000';
     let responseStatus = 'sent';
     let config = null;
 
-    if (!isWidget) {
+    if (isTestNumber) {
+      // FORWARD TO CHATWOOT AS INCOMING (Simulate customer message for testing)
+      if (userData?.chatwoot_api_token && userData?.chatwoot_account_id) {
+        try {
+          const chatwootConfig = {
+            chatwoot_base_url: userData.chatwoot_base_url || 'https://app.chatwoot.com',
+            chatwoot_api_token: decrypt(userData.chatwoot_api_token),
+            chatwoot_account_id: userData.chatwoot_account_id,
+            chatwoot_inbox_id: userData.chatwoot_inbox_id
+          };
+
+          // Find or create conversation for test number
+          const contactQuery = await adminDb.collection('contacts')
+            .where('ownerId', '==', ownerId)
+            .where('phoneNumber', '==', '910000000000')
+            .limit(1)
+            .get();
+          
+          let chatwootConversationId = !contactQuery.empty ? contactQuery.docs[0].data().chatwootConversationId : null;
+
+          if (!chatwootConversationId) {
+            const cwData = await sendToChatwoot.createContactAndConversation(
+              '910000000000', 
+              'Test User (XYZ Bridge)', 
+              chatwootConfig
+            );
+            chatwootConversationId = cwData.conversationId;
+            if (!contactQuery.empty) {
+              await contactQuery.docs[0].ref.update({ chatwootConversationId });
+            }
+          }
+
+          await sendToChatwoot.sendMessage(chatwootConversationId, content, 'incoming', chatwootConfig);
+          responseStatus = 'sent';
+        } catch (cwError) {
+          console.error('Chatwoot test forwarding failed:', cwError);
+          responseStatus = 'failed';
+        }
+      }
+    } else if (!isWidget) {
       // Real MSG91 logic - Auth is required
       if (!userData?.msg91_authkey || !userData?.msg91_integrated_number) {
         return NextResponse.json({ error: 'MSG91 not configured' }, { status: 400 });
