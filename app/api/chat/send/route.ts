@@ -49,33 +49,34 @@ export async function POST(req: NextRequest) {
             chatwoot_inbox_id: userData.chatwoot_inbox_id
           };
 
-          // Find or create conversation for test number
-          const contactQuery = await adminDb.collection('contacts')
-            .where('ownerId', '==', ownerId)
-            .where('phoneNumber', '==', '910000000000')
-            .limit(1)
-            .get();
-          
-          let chatwootConversationId = !contactQuery.empty ? contactQuery.docs[0].data().chatwootConversationId : null;
+          console.log('[TestNumber] Forwarding to Chatwoot as incoming...');
+          const result = await sendToChatwoot.forwardInbound(
+            '910000000000',
+            'Test User (XYZ Bridge)',
+            content,
+            chatwootConfig
+          );
+          console.log('[TestNumber] Chatwoot result:', result);
 
-          if (!chatwootConversationId) {
-            const cwData = await sendToChatwoot.createContactAndConversation(
-              '910000000000', 
-              'Test User (XYZ Bridge)', 
-              chatwootConfig
-            );
-            chatwootConversationId = cwData.conversationId;
+          // Save conversationId for future use
+          if (result.conversationId) {
+            const contactQuery = await adminDb.collection('contacts')
+              .where('ownerId', '==', ownerId)
+              .where('phoneNumber', '==', '910000000000')
+              .limit(1)
+              .get();
             if (!contactQuery.empty) {
-              await contactQuery.docs[0].ref.update({ chatwootConversationId });
+              await contactQuery.docs[0].ref.update({ chatwootConversationId: result.conversationId });
             }
           }
 
-          await sendToChatwoot.sendMessage(chatwootConversationId, content, 'incoming', chatwootConfig);
           responseStatus = 'sent';
-        } catch (cwError) {
-          console.error('Chatwoot test forwarding failed:', cwError);
+        } catch (cwError: any) {
+          console.error('[TestNumber] Chatwoot forwarding FAILED:', cwError.message);
           responseStatus = 'failed';
         }
+      } else {
+        console.warn('[TestNumber] Chatwoot not configured, skipping forwarding');
       }
     } else if (!isWidget) {
       // Real MSG91 logic - Auth is required

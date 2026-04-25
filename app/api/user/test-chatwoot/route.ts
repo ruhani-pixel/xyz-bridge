@@ -14,10 +14,7 @@ export async function POST(req: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(token).catch(() => null);
     if (!decodedToken) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
 
-    console.log('Starting Chatwoot Test for user:', decodedToken.uid);
-
     const { base_url, api_token, account_id, inbox_id } = await req.json();
-    console.log('Config received:', { base_url, account_id, inbox_id });
 
     if (!base_url || !api_token || !account_id || !inbox_id) {
       return NextResponse.json({ error: 'Missing configuration details' }, { status: 400 });
@@ -25,9 +22,8 @@ export async function POST(req: NextRequest) {
 
     const cleanUrl = base_url.trim().replace(/\/$/, '');
 
-    // Ensure a contact exists in our DB for the test number
+    // Ensure a test contact exists in our DB
     const testPhoneNumber = '910000000000';
-    console.log('Ensuring test contact exists for phone:', testPhoneNumber);
     const contactsRef = adminDb.collection('contacts');
     const contactSnap = await contactsRef
       .where('ownerId', '==', decodedToken.uid)
@@ -37,7 +33,6 @@ export async function POST(req: NextRequest) {
 
     let contactRef;
     if (contactSnap.empty) {
-      console.log('Creating new test contact in Firestore...');
       contactRef = await contactsRef.add({
         ownerId: decodedToken.uid,
         phoneNumber: testPhoneNumber,
@@ -47,7 +42,6 @@ export async function POST(req: NextRequest) {
         updatedAt: FieldValue.serverTimestamp(),
       });
     } else {
-      console.log('Test contact already exists in Firestore.');
       contactRef = contactSnap.docs[0].ref;
     }
 
@@ -58,15 +52,18 @@ export async function POST(req: NextRequest) {
       chatwoot_inbox_id: inbox_id
     };
 
-    console.log('Calling sendToChatwoot.testConnection...');
-    const result = await sendToChatwoot.testConnection(config);
-    console.log('testConnection result:', result);
+    // Use the new forwardInbound method
+    const result = await sendToChatwoot.forwardInbound(
+      testPhoneNumber,
+      'Test User (XYZ Bridge)',
+      '🧪 This is a test message from XYZ Bridge! If you see this, your integration is working correctly.',
+      config
+    );
 
-    if (result.conversation_id || (result.payload && result.payload.conversation_id)) {
-      const convId = result.conversation_id || result.payload.conversation_id;
-      console.log('Updating contact with conversation ID:', convId);
+    // Save conversationId
+    if (result.conversationId) {
       await contactRef.update({
-        chatwootConversationId: convId
+        chatwootConversationId: result.conversationId
       });
     }
 
@@ -77,10 +74,9 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('CRITICAL: Test Chatwoot Error:', error);
+    console.error('CRITICAL: Test Chatwoot Error:', error.message);
     return NextResponse.json({ 
       error: error.message || 'Failed to send test message',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }
