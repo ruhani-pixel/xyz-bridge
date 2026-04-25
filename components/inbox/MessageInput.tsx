@@ -130,7 +130,7 @@ export function MessageInput({ contact }: MessageInputProps) {
       
       <div className="mt-3 flex items-center gap-4 px-2">
          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
-           <div className="w-1.5 h-1.5 rounded-full bg-slate-200" /> Use Shift + Enter for new line
+           <span className="w-1.5 h-1.5 rounded-full bg-slate-200" /> Use Shift + Enter for new line
          </p>
          <div className="h-3 w-px bg-slate-100" />
          <button className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em] hover:opacity-80 transition-opacity">
