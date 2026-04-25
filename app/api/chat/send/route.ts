@@ -134,6 +134,34 @@ export async function POST(req: NextRequest) {
     // 6. Update stats for the dashboard
     await incrementMessageStats(ownerId, 'outbound', isWidget ? 'widget' : 'whatsapp');
 
+    // --- NEW: Sync SaaS Dashboard reply to Chatwoot ---
+    if (!isTestNumber && !isWidget && responseStatus === 'sent') {
+      const contactData = contactQuery.empty ? null : contactQuery.docs[0].data();
+      const isBridgeGlobal = userData?.bridgeEnabled;
+      const isBridgeContact = contactData?.bridgeEnabled;
+      const conversationId = contactData?.chatwootConversationId;
+
+      if ((isBridgeGlobal || isBridgeContact) && conversationId && userData?.chatwoot_api_token) {
+        try {
+          const chatwootConfig = {
+            chatwoot_base_url: userData.chatwoot_base_url || 'https://app.chatwoot.com',
+            chatwoot_api_token: decrypt(userData.chatwoot_api_token),
+            chatwoot_account_id: userData.chatwoot_account_id
+          };
+          
+          await sendToChatwoot.sendMessage(
+            conversationId,
+            content,
+            'outgoing', // Marking as agent reply in Chatwoot
+            chatwootConfig
+          );
+          console.log('[Bridge] Synced SaaS reply to Chatwoot conversation:', conversationId);
+        } catch (cwError) {
+          console.error('[Bridge] Failed to sync SaaS reply to Chatwoot:', cwError);
+        }
+      }
+    }
+
     return NextResponse.json({ success: true, status: responseStatus });
 
   } catch (error: any) {
