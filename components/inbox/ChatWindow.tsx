@@ -118,7 +118,40 @@ export function ChatWindow({ contact }: ChatWindowProps) {
         </div>
 
         <div className="flex items-center gap-2">
-           <ExportButton 
+          {/* Test Mode Toggle (Only for Test Number) */}
+          {(contact.phoneNumber === '910000000000' || contact.phoneNumber === '+910000000000') && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                {contact.isSimulatedCustomer === false ? 'SINK MODE (AGENT)' : 'SIMULATE: CUSTOMER'}
+              </span>
+              <button 
+                onClick={async () => {
+                  const newState = contact.isSimulatedCustomer === false ? true : false;
+                  try {
+                    await fetch(`/api/contacts/${contact.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ isSimulatedCustomer: newState }),
+                    });
+                    toast.success(`Test Mode: ${newState ? 'Customer' : 'Agent Sync'}`);
+                  } catch (e) {
+                    toast.error('Error switching test mode');
+                  }
+                }}
+                className={cn(
+                  "w-8 h-4 rounded-full relative transition-all duration-300",
+                  contact.isSimulatedCustomer === false ? "bg-blue-600" : "bg-emerald-600"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm",
+                  contact.isSimulatedCustomer === false ? "left-4" : "left-1"
+                )} />
+              </button>
+            </div>
+          )}
+
+          <ExportButton 
              data={chatMessages} 
              filename={`chat_${contact.phoneNumber}_${new Date().toISOString().split('T')[0]}`} 
            />

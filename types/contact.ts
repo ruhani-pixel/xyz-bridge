@@ -29,4 +29,5 @@ export interface Contact {
   // Real-time AI Status
   isTyping?: boolean;
   aiError?: string | null;
+  isSimulatedCustomer?: boolean;
 }

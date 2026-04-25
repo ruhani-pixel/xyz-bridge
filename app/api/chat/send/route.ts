@@ -38,6 +38,16 @@ export async function POST(req: NextRequest) {
     let responseStatus = 'sent';
     let config = null;
 
+    // Load Contact Data early to check for Chatwoot Conversation ID
+    const contactQuery = await adminDb.collection('contacts')
+      .where('ownerId', '==', ownerId)
+      .where('phoneNumber', '==', phoneNumber)
+      .limit(1)
+      .get();
+    
+    const contactDoc = contactQuery.empty ? null : contactQuery.docs[0];
+    const contactData = contactDoc?.data();
+
     if (isTestNumber) {
       // FORWARD TO CHATWOOT AS INCOMING (Simulate customer message for testing)
       if (userData?.chatwoot_api_token && userData?.chatwoot_account_id) {
@@ -49,34 +59,39 @@ export async function POST(req: NextRequest) {
             chatwoot_inbox_id: userData.chatwoot_inbox_id
           };
 
-          console.log('[TestNumber] Forwarding to Chatwoot as incoming...');
-          const result = await sendToChatwoot.forwardInbound(
-            '910000000000',
-            'Test User (XYZ Bridge)',
-            content,
-            chatwootConfig
-          );
-          console.log('[TestNumber] Chatwoot result:', result);
+          const conversationId = contactData?.chatwootConversationId;
+          const isAgentSim = contactData?.isSimulatedCustomer === false;
 
-          // Save conversationId for future use
-          if (result.conversationId) {
-            const contactQuery = await adminDb.collection('contacts')
-              .where('ownerId', '==', ownerId)
-              .where('phoneNumber', '==', '910000000000')
-              .limit(1)
-              .get();
-            if (!contactQuery.empty) {
-              await contactQuery.docs[0].ref.update({ chatwootConversationId: result.conversationId });
+          if (conversationId) {
+            console.log(`[TestNumber] Syncing as ${isAgentSim ? 'AGENT' : 'CUSTOMER'}...`);
+            await sendToChatwoot.sendMessage(
+              conversationId,
+              content,
+              isAgentSim ? 'outgoing' : 'incoming',
+              chatwootConfig
+            );
+          } else {
+            console.log('[TestNumber] No conversation found, creating new one...');
+            const result = await sendToChatwoot.forwardInbound(
+              '910000000000',
+              'Test User (XYZ Bridge)',
+              content,
+              chatwootConfig
+            );
+            
+            if (result.conversationId && contactDoc) {
+              await contactDoc.ref.update({ 
+                chatwootConversationId: result.conversationId,
+                chatwootContactId: result.contactId,
+                chatwootSourceId: result.sourceId
+              });
             }
           }
-
           responseStatus = 'sent';
         } catch (cwError: any) {
-          console.error('[TestNumber] Chatwoot forwarding FAILED:', cwError.message);
+          console.error('[TestNumber] Chatwoot simulation FAILED:', cwError.message);
           responseStatus = 'failed';
         }
-      } else {
-        console.warn('[TestNumber] Chatwoot not configured, skipping forwarding');
       }
     } else if (!isWidget) {
       // Real MSG91 logic - Auth is required
@@ -98,7 +113,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Record outbound message
+    // 4. Record outbound message in our database
     const messageRef = adminDb.collection('chat_messages').doc();
     await messageRef.set({
       ownerId,
@@ -114,29 +129,21 @@ export async function POST(req: NextRequest) {
     });
 
     // 5. Update Contact metadata
-    // We need to find the correct contact doc for this user/phone
-    const contactQuery = await adminDb.collection('contacts')
-      .where('ownerId', '==', ownerId)
-      .where('phoneNumber', '==', phoneNumber)
-      .limit(1)
-      .get();
-
-    if (!contactQuery.empty) {
-      const contactRef = contactQuery.docs[0].ref;
-      await contactRef.update({
+    if (contactDoc) {
+      await contactDoc.ref.update({
         lastMessage: content,
         lastMessageAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-        unreadCount: 0, // Agent replied, clear unread
+        unreadCount: 0,
       });
     }
 
     // 6. Update stats for the dashboard
     await incrementMessageStats(ownerId, 'outbound', isWidget ? 'widget' : 'whatsapp');
 
-    // --- NEW: Sync SaaS Dashboard reply to Chatwoot ---
+    // --- NEW: Sync Real SaaS Dashboard reply to Chatwoot (Only for non-test numbers) ---
+    // Test numbers are already handled above as "incoming" simulations
     if (!isTestNumber && !isWidget && responseStatus === 'sent') {
-      const contactData = contactQuery.empty ? null : contactQuery.docs[0].data();
       const isBridgeGlobal = userData?.bridgeEnabled;
       const isBridgeContact = contactData?.bridgeEnabled;
       const conversationId = contactData?.chatwootConversationId;
@@ -152,12 +159,12 @@ export async function POST(req: NextRequest) {
           await sendToChatwoot.sendMessage(
             conversationId,
             content,
-            'outgoing', // Marking as agent reply in Chatwoot
+            'outgoing', // Real agent reply
             chatwootConfig
           );
-          console.log('[Bridge] Synced SaaS reply to Chatwoot conversation:', conversationId);
+          console.log('[Bridge] Synced real SaaS reply to Chatwoot:', conversationId);
         } catch (cwError) {
-          console.error('[Bridge] Failed to sync SaaS reply to Chatwoot:', cwError);
+          console.error('[Bridge] Failed to sync real SaaS reply to Chatwoot:', cwError);
         }
       }
     }
