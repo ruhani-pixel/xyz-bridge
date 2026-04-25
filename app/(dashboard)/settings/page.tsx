@@ -593,12 +593,6 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Basic MSG91 check for both
-                          if (!config.msg91_authkey || !config.msg91_integrated_number) {
-                            toast.error('Please fill MSG91 details first!');
-                            return;
-                          }
-
                           if (!config.bridgeEnabled) {
                             const isConfigured = config.chatwoot_api_token && 
                                                config.chatwoot_account_id && 
@@ -606,7 +600,9 @@ export default function SettingsPage() {
                                                config.chatwoot_base_url;
                             
                             if (!isConfigured) {
-                              toast.error('Please fill all Chatwoot details first!');
+                              toast.error('Kripya pehle Chatwoot details bharein!', {
+                                description: 'Bridge mode ke liye Chatwoot setup hona zaroori hai.'
+                              });
                               return;
                             }
                           }
@@ -638,7 +634,9 @@ export default function SettingsPage() {
                         onClick={() => {
                           if (!config.platformEnabled) {
                             if (!config.msg91_authkey || !config.msg91_integrated_number) {
-                              toast.error('Please fill MSG91 details first!');
+                              toast.error('Kripya pehle MSG91 setup karein!', {
+                                description: 'Platform Mode (AI Inbox) ke liye MSG91 integrated number hona zaroori hai.'
+                              });
                               return;
                             }
                           }

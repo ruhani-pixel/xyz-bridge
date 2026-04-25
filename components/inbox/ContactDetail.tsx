@@ -18,6 +18,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { cn, formatPhone } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -26,6 +27,7 @@ interface ContactDetailProps {
 }
 
 export function ContactDetail({ contact }: ContactDetailProps) {
+  const { adminData } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
@@ -33,7 +35,17 @@ export function ContactDetail({ contact }: ContactDetailProps) {
   const aiEnabled = contact.aiEnabled;
   const bridgeEnabled = contact.bridgeEnabled || false;
 
+  const isMsg91Setup = !!adminData?.msg91_authkey && !!adminData?.msg91_integrated_number;
+  const isChatwootSetup = !!adminData?.chatwoot_api_token && !!adminData?.chatwoot_account_id && !!adminData?.chatwoot_inbox_id;
+
   const toggleAI = async () => {
+    if (!isMsg91Setup) {
+      toast.error('Kripya pehle Settings mein MSG91 setup karein!', {
+        description: 'AI replies ke liye MSG91 integrated number hona zaroori hai.'
+      });
+      return;
+    }
+
     setLoading(true);
     const newState = !aiEnabled;
     try {
@@ -47,7 +59,7 @@ export function ContactDetail({ contact }: ContactDetailProps) {
         const data = await res.json();
         throw new Error(data.message || 'Failed to toggle');
       }
-      toast.success(`AI Response: ${newState ? 'Chalu (ON) ⚡' : 'Band (OFF)'}`);
+      toast.success(`Platform Mode: ${newState ? 'AI Replies ON ⚡' : 'OFF'}`);
     } catch (error: any) {
        toast.error(error.message || 'AI toggle karne mein error aaya.');
     } finally {
@@ -56,6 +68,13 @@ export function ContactDetail({ contact }: ContactDetailProps) {
   };
 
   const toggleBridge = async () => {
+    if (!isChatwootSetup) {
+      toast.error('Kripya pehle Settings mein Chatwoot setup karein!', {
+        description: 'Bridge mode ke liye Chatwoot credentials hona zaroori hai.'
+      });
+      return;
+    }
+
     setLoading(true);
     const newState = !bridgeEnabled;
     try {
@@ -66,7 +85,7 @@ export function ContactDetail({ contact }: ContactDetailProps) {
       });
 
       if (!res.ok) throw new Error('Failed to toggle');
-      toast.success(`Bridge Mode: ${newState ? 'Forwarding ON' : 'Internal (AI Only)'}`);
+      toast.success(`Bridge Mode: ${newState ? 'Forwarding to Chatwoot' : 'Local Only'}`);
     } catch (error) {
        toast.error('Bridge toggle karne mein samasya aayi.');
     } finally {
@@ -142,9 +161,9 @@ export function ContactDetail({ contact }: ContactDetailProps) {
                       <Bot className="w-4 h-4 text-brand-gold" />
                    </div>
                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">AI Agent</span>
+                      <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">Platform Mode</span>
                       <span className={cn("text-[8px] font-black uppercase tracking-widest", aiEnabled ? "text-emerald-500":"text-slate-600")}>
-                        {aiEnabled ? 'Chalu (ON)' : 'Band (OFF)'}
+                        {aiEnabled ? 'AI Inbox Active' : 'AI Response Off'}
                       </span>
                    </div>
                 </div>
@@ -174,7 +193,7 @@ export function ContactDetail({ contact }: ContactDetailProps) {
                    <div className="flex flex-col">
                       <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">Bridge Mode</span>
                       <span className={cn("text-[8px] font-black uppercase tracking-widest", bridgeEnabled ? "text-blue-500":"text-slate-600")}>
-                        {bridgeEnabled ? 'Integrated' : 'Local (AI)'}
+                        {bridgeEnabled ? 'Chatwoot Link' : 'SaaS Internal'}
                       </span>
                    </div>
                 </div>
@@ -195,8 +214,8 @@ export function ContactDetail({ contact }: ContactDetailProps) {
 
              <p className="text-[9px] text-slate-500 font-bold leading-relaxed italic opacity-60 text-center">
                {bridgeEnabled 
-                 ? "Bypassing to external nodes." 
-                 : "Handled by Solid Models AI Agent."}
+                 ? "Forwarding to Chatwoot workspace." 
+                 : "Using internal AI chat dashboard."}
              </p>
           </div>
         </div>

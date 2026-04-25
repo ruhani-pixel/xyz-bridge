@@ -162,7 +162,11 @@ export async function POST(req: NextRequest) {
     });
 
     // --- BRIDGE MODE: Forward to Chatwoot ---
-    if (userData.bridgeEnabled) {
+    const isBridgeGlobal = userData.bridgeEnabled;
+    const isBridgeContact = contactData?.bridgeEnabled;
+    const isChatwootConfigured = userData.chatwoot_api_token && userData.chatwoot_account_id;
+
+    if ((isBridgeGlobal || isBridgeContact) && isChatwootConfigured) {
       try {
         const chatwootConfig = {
           chatwoot_base_url: userData.chatwoot_base_url,
@@ -171,21 +175,19 @@ export async function POST(req: NextRequest) {
           chatwoot_inbox_id: userData.chatwoot_inbox_id
         };
 
-        if (chatwootConfig.chatwoot_api_token && chatwootConfig.chatwoot_account_id) {
-          const cwResult = await sendToChatwoot.forwardInbound(
-            customerNumber,
-            contactName,
-            messageText,
-            chatwootConfig
-          );
+        const cwResult = await sendToChatwoot.forwardInbound(
+          customerNumber,
+          contactName,
+          messageText,
+          chatwootConfig
+        );
 
-          if (cwResult.conversationId && !contactData?.chatwootConversationId) {
-            await finalContactRef.update({
-              chatwootConversationId: cwResult.conversationId,
-              chatwootContactId: cwResult.contactId,
-              chatwootSourceId: cwResult.sourceId,
-            });
-          }
+        if (cwResult.conversationId && !contactData?.chatwootConversationId) {
+          await finalContactRef.update({
+            chatwootConversationId: cwResult.conversationId,
+            chatwootContactId: cwResult.contactId,
+            chatwootSourceId: cwResult.sourceId,
+          });
         }
       } catch (cwError) {
         console.error('Chatwoot forwarding failed:', cwError);
@@ -193,7 +195,10 @@ export async function POST(req: NextRequest) {
     }
 
     // --- PLATFORM MODE: AI Auto-Reply ---
-    if (userData.platformEnabled && contactData?.aiEnabled !== false) {
+    const isPlatformGlobal = userData.platformEnabled !== false; // Default true
+    const isAIContact = contactData?.aiEnabled !== false; // Default true
+
+    if (isPlatformGlobal && isAIContact) {
       try {
         // --- NEW: Signal AI is typing ---
         await finalContactRef.update({ 
