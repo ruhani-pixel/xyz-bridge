@@ -1,35 +1,84 @@
-// Safe JSON parser - handles HTML error pages from Chatwoot
+// Production-grade Chatwoot API Library
+// Handles timeouts, URL normalization, and robust error parsing
+
+const FETCH_TIMEOUT = 10000; // 10 seconds
+
+/**
+ * Enhanced fetch with timeout and standard headers
+ */
+async function fetchWithTimeout(url: string, options: any) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        ...options.headers
+      }
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error: any) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error('Chatwoot API request timed out (10s). Check your Chatwoot server speed.');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Safely parse JSON from response, handling HTML error pages
+ */
 async function safeJson(res: Response) {
   const text = await res.text();
   try {
+    if (!text) return { success: res.ok };
     return JSON.parse(text);
   } catch (e) {
-    throw new Error(`Chatwoot returned non-JSON (Status: ${res.status}). Body: ${text.substring(0, 200)}`);
+    // If it's HTML (usually a 404 or 500 error page)
+    if (text.includes('<!DOCTYPE html>')) {
+      throw new Error(`Chatwoot returned an HTML error page (Status: ${res.status}). Ensure the Base URL is correct.`);
+    }
+    throw new Error(`Chatwoot returned invalid JSON (Status: ${res.status}). Body snippet: ${text.substring(0, 100)}`);
   }
+}
+
+/**
+ * Normalize Base URL to prevent double slashes
+ */
+function normalizeUrl(url: string) {
+  if (!url) return '';
+  return url.trim().replace(/\/+$/, '');
 }
 
 export const sendToChatwoot = {
 
   /**
    * CORE: Forward an inbound message to Chatwoot
-   * Uses the exact Chatwoot docs pattern:
-   *   1. POST /contacts (with inbox_id) → creates contact + auto-links inbox
-   *   2. POST /conversations (with source_id, inbox_id, contact_id, message)
+   * Automatically creates or finds a contact, links it to the inbox, and starts a conversation.
    */
   async forwardInbound(phoneNumber: string, name: string, text: string, config: any) {
     const { chatwoot_api_token, chatwoot_account_id, chatwoot_inbox_id } = config;
-    // CRITICAL: Strip trailing slash to prevent double-slash 404
-    const baseUrl = (config.chatwoot_base_url || '').trim().replace(/\/+$/, '');
-    const headers: Record<string, string> = {
+    const baseUrl = normalizeUrl(config.chatwoot_base_url);
+    
+    if (!baseUrl || !chatwoot_api_token || !chatwoot_account_id) {
+      throw new Error('Chatwoot setup incomplete. Please check your settings.');
+    }
+
+    const headers = {
       'Content-Type': 'application/json',
       'api_access_token': chatwoot_api_token
     };
 
+    // Normalize phone number for Chatwoot (+91 format preferred)
     const phone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    console.log('[Chatwoot] forwardInbound →', { baseUrl, phone, name, text: text.substring(0, 50) });
 
-    // ── Step 1: Create or find contact (with inbox_id so it auto-links) ──
-    const contactRes = await fetch(
+    // ── Step 1: Create or Find Contact ──
+    const contactRes = await fetchWithTimeout(
       `${baseUrl}/api/v1/accounts/${chatwoot_account_id}/contacts`,
       {
         method: 'POST',
@@ -43,121 +92,71 @@ export const sendToChatwoot = {
       }
     );
 
-    const contactData = await safeJson(contactRes);
-    console.log('[Chatwoot] Contact response status:', contactRes.status, JSON.stringify(contactData).substring(0, 300));
-
-    // Chatwoot returns contact in different shapes:
-    //   - New contact: { payload: { contact: { id, contact_inboxes: [...] } } }
-    //   - Existing contact (409): { message: "...", contact: { id, ... } }
+    let contactData = await safeJson(contactRes);
     let contactId: number | undefined;
     let sourceId: string | undefined;
 
-    if (contactRes.status === 200 || contactRes.status === 201) {
-      // Newly created
+    if (contactRes.ok) {
       const c = contactData.payload?.contact || contactData;
       contactId = c.id;
-      const inboxes = c.contact_inboxes || [];
-      if (inboxes.length > 0) {
-        sourceId = inboxes[0].source_id;
-      }
+      sourceId = c.contact_inboxes?.[0]?.source_id;
     } else if (contactRes.status === 422 || contactRes.status === 409) {
-      // Already exists - extract contact info from error response
-      const existingContact = contactData.contact || contactData.payload?.contact;
-      if (existingContact) {
-        contactId = existingContact.id;
-      }
-    }
-
-    // If we couldn't get contactId from create, search for it
-    if (!contactId) {
-      console.log('[Chatwoot] Contact create returned unexpected format, searching...');
-      const searchRes = await fetch(
+      // If contact already exists, search for it
+      const searchRes = await fetchWithTimeout(
         `${baseUrl}/api/v1/accounts/${chatwoot_account_id}/contacts/search?q=${phoneNumber.replace('+', '')}`,
         { headers }
       );
-      if (searchRes.ok) {
-        const searchData = await safeJson(searchRes);
-        const found = searchData.payload?.[0] || searchData[0];
-        if (found) {
-          contactId = found.id;
-        }
-      }
+      const searchData = await safeJson(searchRes);
+      const found = searchData.payload?.[0] || searchData[0];
+      if (found) contactId = found.id;
     }
 
     if (!contactId) {
-      throw new Error(`Could not create/find contact in Chatwoot for ${phone}`);
+      throw new Error(`Failed to identify contact in Chatwoot (${contactRes.status})`);
     }
-    console.log('[Chatwoot] contactId =', contactId);
 
-    // ── Step 2: Get source_id if we don't have it yet ──
+    // ── Step 2: Ensure Contact is linked to Inbox and get Source ID ──
     if (!sourceId) {
-      // Check existing contact_inboxes
-      const ciRes = await fetch(
+      const linkRes = await fetchWithTimeout(
         `${baseUrl}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/contact_inboxes`,
-        { headers }
-      );
-      if (ciRes.ok) {
-        const ciData = await safeJson(ciRes);
-        const ciArr = ciData.payload || ciData || [];
-        const match = (Array.isArray(ciArr) ? ciArr : []).find(
-          (ci: any) => ci.inbox?.id === Number(chatwoot_inbox_id)
-        );
-        if (match) sourceId = match.source_id;
-      }
-
-      // If still no sourceId, create contact_inbox link
-      if (!sourceId) {
-        console.log('[Chatwoot] Linking contact to inbox...');
-        const linkRes = await fetch(
-          `${baseUrl}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/contact_inboxes`,
-          {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ inbox_id: Number(chatwoot_inbox_id) }),
-          }
-        );
-        if (linkRes.ok) {
-          const linkData = await safeJson(linkRes);
-          sourceId = linkData.source_id;
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ inbox_id: Number(chatwoot_inbox_id) }),
         }
-      }
+      );
+      const linkData = await safeJson(linkRes);
+      sourceId = linkData.source_id;
     }
 
-    // Fallback source_id
     if (!sourceId) {
+      // Absolute fallback
       sourceId = phone;
-      console.log('[Chatwoot] Using phone as sourceId fallback:', sourceId);
     }
-    console.log('[Chatwoot] sourceId =', sourceId);
 
-    // ── Step 3: Create conversation WITH initial message (Chatwoot docs way) ──
-    const convBody = {
-      source_id: sourceId,
-      inbox_id: Number(chatwoot_inbox_id),
-      contact_id: contactId,
-      status: 'open',
-      message: {
-        content: text,
-        message_type: 'incoming',
-        private: false,
-      },
-    };
-
-    console.log('[Chatwoot] Creating conversation with message:', JSON.stringify(convBody));
-    const convRes = await fetch(
+    // ── Step 3: Create Conversation with Message ──
+    const convRes = await fetchWithTimeout(
       `${baseUrl}/api/v1/accounts/${chatwoot_account_id}/conversations`,
       {
         method: 'POST',
         headers,
-        body: JSON.stringify(convBody),
+        body: JSON.stringify({
+          source_id: sourceId,
+          inbox_id: Number(chatwoot_inbox_id),
+          contact_id: contactId,
+          status: 'open',
+          message: {
+            content: text,
+            message_type: 'incoming',
+            private: false,
+          },
+        }),
       }
     );
 
     const convData = await safeJson(convRes);
-    console.log('[Chatwoot] Conversation response status:', convRes.status, JSON.stringify(convData).substring(0, 300));
-
     if (!convRes.ok) {
-      throw new Error(`Conversation create failed (${convRes.status}): ${JSON.stringify(convData).substring(0, 200)}`);
+      throw new Error(`Chatwoot could not create conversation: ${convData.message || convRes.status}`);
     }
 
     return {
@@ -173,19 +172,20 @@ export const sendToChatwoot = {
    */
   async sendMessage(conversationId: number, content: string, messageType: 'incoming' | 'outgoing', config: any) {
     const { chatwoot_api_token, chatwoot_account_id } = config;
-    const baseUrl = (config.chatwoot_base_url || '').trim().replace(/\/+$/, '');
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'api_access_token': chatwoot_api_token
-    };
+    const baseUrl = normalizeUrl(config.chatwoot_base_url);
+    
+    if (!baseUrl || !chatwoot_api_token || !chatwoot_account_id) {
+      throw new Error('Chatwoot setup incomplete.');
+    }
 
-    console.log('[Chatwoot] sendMessage →', { conversationId, messageType, content: content.substring(0, 50) });
-
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${baseUrl}/api/v1/accounts/${chatwoot_account_id}/conversations/${conversationId}/messages`,
       {
         method: 'POST',
-        headers,
+        headers: { 
+          'Content-Type': 'application/json', 
+          'api_access_token': chatwoot_api_token 
+        },
         body: JSON.stringify({
           content,
           message_type: messageType,
@@ -194,41 +194,50 @@ export const sendToChatwoot = {
         }),
       }
     );
+    
     const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.message || `sendMessage failed (${res.status})`);
+    if (!res.ok) {
+      // Special handling for 404
+      if (res.status === 404) {
+        throw new Error('404: Conversation not found in Chatwoot. It might have been deleted.');
+      }
+      throw new Error(data.message || `Chatwoot error (${res.status})`);
+    }
     return data;
   },
 
   /**
-   * Profile check (used by settings UI)
+   * Profile check
    */
   async getProfile(baseUrl: string, token: string) {
-    const res = await fetch(`${baseUrl}/api/v1/profile`, {
-      headers: { 'Content-Type': 'application/json', api_access_token: token },
+    const url = `${normalizeUrl(baseUrl)}/api/v1/profile`;
+    const res = await fetchWithTimeout(url, {
+      headers: { 'api_access_token': token },
     });
-    if (!res.ok) throw new Error('Invalid Token or Base URL');
+    if (!res.ok) throw new Error(`Profile check failed (${res.status}). Verify Token/URL.`);
     return await safeJson(res);
   },
 
   /**
-   * Fetch inboxes (used by settings UI)
+   * Fetch inboxes
    */
   async getInboxes(baseUrl: string, token: string, accountId: string | number) {
-    const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/inboxes`, {
-      headers: { 'Content-Type': 'application/json', api_access_token: token },
+    const url = `${normalizeUrl(baseUrl)}/api/v1/accounts/${accountId}/inboxes`;
+    const res = await fetchWithTimeout(url, {
+      headers: { 'api_access_token': token },
     });
-    if (!res.ok) throw new Error('Failed to fetch inboxes');
+    if (!res.ok) throw new Error(`Failed to fetch inboxes (${res.status})`);
     return await safeJson(res);
   },
 
   /**
-   * Test button: send a test incoming message to Chatwoot
+   * Final test helper
    */
   async testConnection(config: any) {
     return await this.forwardInbound(
       '910000000000',
       'Test User (XYZ Bridge)',
-      '🧪 This is a test message from XYZ Bridge! If you see this, your integration is working correctly.',
+      '🧪 [Production Test] Bridge is live and sync is working!',
       config
     );
   },

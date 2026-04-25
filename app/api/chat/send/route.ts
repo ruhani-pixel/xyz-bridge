@@ -63,13 +63,35 @@ export async function POST(req: NextRequest) {
           const isAgentSim = contactData?.isSimulatedCustomer === false;
 
           if (conversationId) {
-            console.log(`[TestNumber] Syncing as ${isAgentSim ? 'AGENT' : 'CUSTOMER'}...`);
-            await sendToChatwoot.sendMessage(
-              conversationId,
-              content,
-              isAgentSim ? 'outgoing' : 'incoming',
-              chatwootConfig
-            );
+            try {
+              console.log(`[TestNumber] Syncing as ${isAgentSim ? 'AGENT' : 'CUSTOMER'}...`);
+              await sendToChatwoot.sendMessage(
+                conversationId,
+                content,
+                isAgentSim ? 'outgoing' : 'incoming',
+                chatwootConfig
+              );
+            } catch (cwError: any) {
+              if (cwError.message.includes('404')) {
+                console.warn('[TestNumber] Stale Conversation ID detected (404), recreating...');
+                // Fallback: Re-create conversation
+                const result = await sendToChatwoot.forwardInbound(
+                  '910000000000',
+                  'Test User (XYZ Bridge)',
+                  content,
+                  chatwootConfig
+                );
+                if (result.conversationId && contactDoc) {
+                  await contactDoc.ref.update({ 
+                    chatwootConversationId: result.conversationId,
+                    chatwootContactId: result.contactId,
+                    chatwootSourceId: result.sourceId
+                  });
+                }
+              } else {
+                throw cwError;
+              }
+            }
           } else {
             console.log('[TestNumber] No conversation found, creating new one...');
             const result = await sendToChatwoot.forwardInbound(
@@ -163,8 +185,12 @@ export async function POST(req: NextRequest) {
             chatwootConfig
           );
           console.log('[Bridge] Synced real SaaS reply to Chatwoot:', conversationId);
-        } catch (cwError) {
+        } catch (cwError: any) {
           console.error('[Bridge] Failed to sync real SaaS reply to Chatwoot:', cwError);
+          if (cwError.message.includes('404') && contactDoc) {
+             console.warn('[Bridge] Stale ID detected, clearing for next sync...');
+             await contactDoc.ref.update({ chatwootConversationId: null });
+          }
         }
       }
     }

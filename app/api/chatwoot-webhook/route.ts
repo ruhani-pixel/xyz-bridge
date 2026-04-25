@@ -45,6 +45,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // 3. IDEMPOTENCY CHECK (Prevent duplicate processing from Chatwoot retries)
+    const chatwootMsgId = payload.id;
+    if (chatwootMsgId) {
+      const existingMsg = await adminDb.collection('chat_messages')
+        .where('ownerId', '==', ownerId)
+        .where('chatwootMessageId', '==', chatwootMsgId)
+        .limit(1)
+        .get();
+      
+      if (!existingMsg.empty) {
+        return NextResponse.json({ ok: true, message: 'Already processed' });
+      }
+    }
+
     const config = {
       msg91_authkey: decrypt(userData.msg91_authkey),
       msg91_integrated_number: userData.msg91_integrated_number
@@ -68,7 +82,22 @@ export async function POST(req: NextRequest) {
       responseStatus = 'failed';
     }
 
-    // Save outbound message (V2 schema: chat_messages)
+    // 4. Update Contact State (Human Takeover & Last Message)
+    const updateData: any = {
+      lastMessage: content,
+      lastMessageAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    // If a human replies from Chatwoot, we should disable AI for this contact
+    if (contact.aiEnabled !== false) {
+      console.log(`[Human Takeover] Agent replied in Chatwoot. Disabling AI for ${contact.phoneNumber}`);
+      updateData.aiEnabled = false;
+    }
+
+    await contactDoc.ref.update(updateData);
+
+    // 5. Save outbound message
     await adminDb.collection('chat_messages').add({
       ownerId,
       contactPhone: contact.phoneNumber,
@@ -77,6 +106,7 @@ export async function POST(req: NextRequest) {
       content,
       contentType: 'text',
       chatwootConversationId: conversationId,
+      chatwootMessageId: chatwootMsgId,
       status: responseStatus,
       timestamp: FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
