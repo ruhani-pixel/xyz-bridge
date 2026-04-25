@@ -56,13 +56,70 @@ export default function SettingsPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const configData = await configRes.json();
-        if (configData.config) setConfig(configData.config);
+        if (configData.config) {
+          setConfig(configData.config);
+          
+          // Auto-fetch Chatwoot details if configured
+          if (configData.config.chatwoot_base_url && configData.config.chatwoot_api_token) {
+            triggerChatwootFetch(
+              configData.config.chatwoot_base_url,
+              configData.config.chatwoot_api_token,
+              configData.config.chatwoot_account_id
+            );
+          }
+        }
       } catch (err) {
         console.error(err);
       }
     };
     fetchConfig();
   }, []);
+
+  const triggerChatwootFetch = async (baseUrl?: string, apiToken?: string, accountId?: string) => {
+    const url = baseUrl || config.chatwoot_base_url;
+    const token = apiToken || config.chatwoot_api_token;
+    
+    if (!url || !token) return;
+
+    setFetchingChatwoot(true);
+    try {
+      const res = await fetch('/api/user/fetch-chatwoot-details', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          base_url: url,
+          api_token: token,
+          account_id: accountId || config.chatwoot_account_id || undefined
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAccounts(data.accounts || []);
+        setInboxes(data.inboxes || []);
+        setChatwootConnected(true);
+        // Only update config if it was a manual click (no params passed) or if we need to sync IDs
+        if (!baseUrl) {
+          setConfig(prev => ({ 
+            ...prev, 
+            chatwoot_account_id: data.selectedAccountId?.toString() || prev.chatwoot_account_id,
+            chatwoot_inbox_id: data.inboxes[0]?.id?.toString() || prev.chatwoot_inbox_id
+          }));
+          toast.success(`Connected! Found ${data.accounts.length} account(s) & ${data.inboxes.length} inbox(es)`);
+        }
+      } else {
+        if (!baseUrl) toast.error(data.error || 'Failed to connect');
+        setChatwootConnected(false);
+      }
+    } catch {
+      if (!baseUrl) toast.error('Connection error — check Base URL');
+      setChatwootConnected(false);
+    } finally {
+      setFetchingChatwoot(false);
+    }
+  };
 
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,41 +152,7 @@ export default function SettingsPage() {
       toast.error('Enter Base URL and API Token first');
       return;
     }
-    setFetchingChatwoot(true);
-    try {
-      const res = await fetch('/api/user/fetch-chatwoot-details', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          base_url: config.chatwoot_base_url,
-          api_token: config.chatwoot_api_token,
-          account_id: accountIdOverride || config.chatwoot_account_id || undefined
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAccounts(data.accounts || []);
-        setInboxes(data.inboxes || []);
-        setChatwootConnected(true);
-        setConfig(prev => ({ 
-          ...prev, 
-          chatwoot_account_id: data.selectedAccountId?.toString() || prev.chatwoot_account_id,
-          chatwoot_inbox_id: data.inboxes[0]?.id?.toString() || prev.chatwoot_inbox_id
-        }));
-        toast.success(`Connected! Found ${data.accounts.length} account(s) & ${data.inboxes.length} inbox(es)`);
-      } else {
-        toast.error(data.error || 'Failed to connect');
-        setChatwootConnected(false);
-      }
-    } catch {
-      toast.error('Connection error — check Base URL');
-      setChatwootConnected(false);
-    } finally {
-      setFetchingChatwoot(false);
-    }
+    await triggerChatwootFetch();
   };
 
   const handleTestChatwoot = async () => {
