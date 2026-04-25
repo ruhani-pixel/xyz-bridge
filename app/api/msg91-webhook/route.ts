@@ -172,29 +172,20 @@ export async function POST(req: NextRequest) {
         };
 
         if (chatwootConfig.chatwoot_api_token && chatwootConfig.chatwoot_account_id) {
-          let chatwootConversationId = contactData?.chatwootConversationId;
-          
-          if (!chatwootConversationId) {
-            const cwData = await sendToChatwoot.createContactAndConversation(
-              customerNumber, 
-              contactName, 
-              chatwootConfig
-            );
-            chatwootConversationId = cwData.conversationId;
-            
-            await finalContactRef.update({
-              chatwootConversationId: cwData.conversationId,
-              chatwootContactId: cwData.contactId,
-              chatwootSourceId: cwData.sourceId,
-            });
-          }
-
-          await sendToChatwoot.sendMessage(
-            chatwootConversationId,
+          const cwResult = await sendToChatwoot.forwardInbound(
+            customerNumber,
+            contactName,
             messageText,
-            'incoming',
             chatwootConfig
           );
+
+          if (cwResult.conversationId && !contactData?.chatwootConversationId) {
+            await finalContactRef.update({
+              chatwootConversationId: cwResult.conversationId,
+              chatwootContactId: cwResult.contactId,
+              chatwootSourceId: cwResult.sourceId,
+            });
+          }
         }
       } catch (cwError) {
         console.error('Chatwoot forwarding failed:', cwError);
