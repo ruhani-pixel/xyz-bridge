@@ -33,10 +33,12 @@ export const sendToChatwoot = {
         }),
       });
       const contactData = await contactRes.json();
-      contact = contactData.payload.contact;
+      if (!contactRes.ok) throw new Error(contactData.message || 'Failed to create contact in Chatwoot');
+      contact = contactData.payload?.contact || contactData;
     }
     
     contactId = contact.id;
+    if (!contactId) throw new Error('Could not identify contact ID in Chatwoot');
 
     // 2. Ensure Contact is linked to Inbox
     const contactInboxesRes = await fetch(`${chatwoot_base_url}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/contact_inboxes`, {
@@ -52,8 +54,11 @@ export const sendToChatwoot = {
         body: JSON.stringify({ inbox_id: chatwoot_inbox_id }),
       });
       const inboxData = await inboxRes.json();
+      if (!inboxRes.ok) throw new Error(inboxData.message || 'Failed to link contact to inbox in Chatwoot');
       sourceId = inboxData.source_id;
     }
+
+    if (!sourceId) throw new Error('Could not identify source ID in Chatwoot');
 
     // 3. Find or Create Conversation
     const convsRes = await fetch(`${chatwoot_base_url}/api/v1/accounts/${chatwoot_account_id}/contacts/${contactId}/conversations`, {
@@ -72,8 +77,11 @@ export const sendToChatwoot = {
         }),
       });
       const convData = await convRes.json();
+      if (!convRes.ok) throw new Error(convData.message || 'Failed to create conversation in Chatwoot');
       conversationId = convData.id;
     }
+
+    if (!conversationId) throw new Error('Could not identify conversation ID in Chatwoot');
 
     return { conversationId, sourceId, contactId };
   },
@@ -92,7 +100,9 @@ export const sendToChatwoot = {
         content_type: 'text',
       }),
     });
-    return await res.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to send message to Chatwoot');
+    return data;
   },
 
   async getProfile(baseUrl: string, token: string) {
