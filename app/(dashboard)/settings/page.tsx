@@ -41,6 +41,7 @@ export default function SettingsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [fetchingChatwoot, setFetchingChatwoot] = useState(false);
+  const [testingChatwoot, setTestingChatwoot] = useState(false);
   const [chatwootConnected, setChatwootConnected] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [inboxes, setInboxes] = useState<any[]>([]);
@@ -128,6 +129,46 @@ export default function SettingsPage() {
       setChatwootConnected(false);
     } finally {
       setFetchingChatwoot(false);
+    }
+  };
+
+  const handleTestChatwoot = async () => {
+    if (!config.chatwoot_base_url || !config.chatwoot_api_token || !config.chatwoot_account_id || !config.chatwoot_inbox_id) {
+      toast.error('Complete Chatwoot setup first');
+      return;
+    }
+    
+    setTestingChatwoot(true);
+    const loadingToast = toast.loading('Sending test message to Chatwoot...');
+    
+    try {
+      const res = await fetch('/api/user/test-chatwoot', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          base_url: config.chatwoot_base_url,
+          api_token: config.chatwoot_api_token,
+          account_id: config.chatwoot_account_id,
+          inbox_id: config.chatwoot_inbox_id
+        })
+      });
+      
+      const data = await res.json();
+      toast.dismiss(loadingToast);
+      
+      if (data.success) {
+        toast.success('Test message sent! Check your Chatwoot inbox.');
+      } else {
+        toast.error(data.error || 'Failed to send test message');
+      }
+    } catch {
+      toast.dismiss(loadingToast);
+      toast.error('Connection error');
+    } finally {
+      setTestingChatwoot(false);
     }
   };
 
@@ -282,9 +323,19 @@ export default function SettingsPage() {
                       <span className="w-1.5 h-5 bg-blue-500 rounded-full" />
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Chatwoot <span className="text-slate-400">(Optional)</span></h3>
                       {chatwootConnected && (
-                        <span className="ml-auto flex items-center gap-1 text-[8px] font-black text-emerald-600 uppercase tracking-widest">
-                          <CheckCircle2 className="w-3 h-3" /> Connected
-                        </span>
+                        <div className="ml-auto flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleTestChatwoot}
+                            disabled={testingChatwoot}
+                            className="text-[8.5px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest flex items-center gap-1 transition-colors disabled:opacity-50"
+                          >
+                            <Zap className="w-2.5 h-2.5" /> {testingChatwoot ? 'Testing...' : 'Test'}
+                          </button>
+                          <span className="flex items-center gap-1 text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                            <CheckCircle2 className="w-3 h-3" /> Connected
+                          </span>
+                        </div>
                       )}
                     </div>
 

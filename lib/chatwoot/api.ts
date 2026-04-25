@@ -110,4 +110,16 @@ export const sendToChatwoot = {
     if (!res.ok) throw new Error('Failed to fetch inboxes');
     return await res.json();
   },
+
+  async testConnection(config: any) {
+    const testPhoneNumber = '+910000000000';
+    const testName = 'Test User (XYZ Bridge)';
+    const testMessage = 'This is a test message from XYZ Bridge! If you see this, your integration is working correctly.';
+    
+    // Create/Find test contact and conversation
+    const { conversationId } = await this.createContactAndConversation(testPhoneNumber, testName, config);
+    
+    // Send message as incoming
+    return await this.sendMessage(conversationId, testMessage, 'incoming', config);
+  }
 };
