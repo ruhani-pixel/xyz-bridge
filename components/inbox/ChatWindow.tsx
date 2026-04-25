@@ -22,6 +22,8 @@ export function ChatWindow({ contact }: ChatWindowProps) {
   const { messages, loading } = useMessages(user?.uid, 50);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const isTestNumber = contact.phoneNumber === '910000000000';
+
   // Filter messages for THIS specific contact
   const chatMessages = messages.filter(m => m.contactPhone === contact.phoneNumber).reverse();
 
@@ -83,7 +85,18 @@ export function ChatWindow({ contact }: ChatWindowProps) {
                    return () => clearInterval(timer);
                  }, [contact.lastInboundAt]);
 
-                 const isSessionActive = isWidget || (timeLeft !== 'EXPIRED' && timeLeft !== '');
+                 const isSessionActive = isWidget || isTestNumber || (timeLeft !== 'EXPIRED' && timeLeft !== '');
+
+                 if (isTestNumber) {
+                   return (
+                     <>
+                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                       <span className="text-[9px] font-black uppercase tracking-[0.15em] leading-none text-blue-600">
+                         BRIDGE TEST MODE ● ACTIVE
+                       </span>
+                     </>
+                   );
+                 }
 
                  return (
                    <>

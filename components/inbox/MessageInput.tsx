@@ -21,7 +21,8 @@ export function MessageInput({ contact }: MessageInputProps) {
     ? new Date(contact.lastInboundAt.seconds * 1000) 
     : null;
   
-  const isExpired = contact.source === 'whatsapp' && 
+  const isTestNumber = contact.phoneNumber === '910000000000';
+  const isExpired = !isTestNumber && contact.source === 'whatsapp' && 
                     (!lastInbound || (Date.now() - lastInbound.getTime()) > 24 * 60 * 60 * 1000);
 
   const handleSend = async () => {

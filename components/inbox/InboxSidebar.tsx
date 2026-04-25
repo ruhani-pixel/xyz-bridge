@@ -188,9 +188,11 @@ export function InboxSidebar({ contacts, selectedId, onSelect }: InboxSidebarPro
                         "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest",
                         contact.source === 'widget' 
                           ? "bg-brand-gold/10 text-brand-gold" 
+                          : contact.phoneNumber === '910000000000'
+                          ? "bg-blue-50 text-blue-600"
                           : "bg-emerald-50 text-emerald-600"
                       )}>
-                        {contact.source === 'widget' ? 'WEB' : 'WA'}
+                        {contact.source === 'widget' ? 'WEB' : contact.phoneNumber === '910000000000' ? 'BRIDGE' : 'WA'}
                       </span>
                     </div>
                     <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter shrink-0 ml-2">
